@@ -38,7 +38,9 @@ fn reserve_loopback_port() -> Result<u16, Box<dyn std::error::Error>> {
 
 fn create_session_token() -> Result<String, Box<dyn std::error::Error>> {
     let mut bytes = [0_u8; 32];
-    getrandom::fill(&mut bytes)?;
+    getrandom::fill(&mut bytes).map_err(|error| {
+        std::io::Error::other(format!("failed to generate session token: {error}"))
+    })?;
     Ok(URL_SAFE_NO_PAD.encode(bytes))
 }
 
