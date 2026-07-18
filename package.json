@@ -1,0 +1,22 @@
+{
+  "name": "projectmind-engineering-ai",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/desktop"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "npm --workspace @projectmind/desktop run dev",
+    "desktop:dev": "npm --workspace @projectmind/desktop run tauri:dev",
+    "build": "npm --workspace @projectmind/desktop run build",
+    "desktop:build": "npm --workspace @projectmind/desktop run tauri:build",
+    "lint": "npm --workspace @projectmind/desktop run lint",
+    "format": "npm --workspace @projectmind/desktop run format",
+    "format:check": "npm --workspace @projectmind/desktop run format:check",
+    "test": "npm --workspace @projectmind/desktop run test",
+    "typecheck": "npm --workspace @projectmind/desktop run typecheck"
+  }
+}
