@@ -32,7 +32,7 @@ try {
     Push-Location "apps/desktop/src-tauri"
     try {
         cargo fmt --check
-        cargo check
+        cargo check --locked
     }
     finally {
         Pop-Location
