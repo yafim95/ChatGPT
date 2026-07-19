@@ -45,7 +45,8 @@ $uninstallEntry = $uninstallRoots |
 
 $applicationPath = $null
 if ($uninstallEntry -and $uninstallEntry.InstallLocation) {
-    $candidate = Join-Path $uninstallEntry.InstallLocation "$productName.exe"
+    $installLocation = ([string]$uninstallEntry.InstallLocation).Trim().Trim('"')
+    $candidate = Join-Path $installLocation "$productName.exe"
     if (Test-Path $candidate) {
         $applicationPath = $candidate
     }
