@@ -52,7 +52,8 @@ if ($uninstallEntry -and $uninstallEntry.InstallLocation) {
     }
 }
 if (-not $applicationPath -and $uninstallEntry -and $uninstallEntry.DisplayIcon) {
-    $candidate = $uninstallEntry.DisplayIcon.Trim('"').Replace(",0", "")
+    $candidate = ([string]$uninstallEntry.DisplayIcon).Trim()
+    $candidate = ($candidate -replace ",\d+$", "").Trim().Trim('"')
     if (Test-Path $candidate) {
         $applicationPath = $candidate
     }
