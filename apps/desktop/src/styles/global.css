@@ -317,6 +317,17 @@ textarea {
   color: var(--colorNeutralForeground3);
 }
 
+.startup-diagnostic {
+  max-width: 680px;
+  color: var(--colorPaletteRedForeground1);
+}
+
+.startup-log-path {
+  max-width: min(760px, 100%);
+  overflow-wrap: anywhere;
+  color: var(--colorNeutralForeground3);
+}
+
 .startup-mark {
   width: 64px;
   height: 64px;

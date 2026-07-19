@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
 & (Join-Path $PSScriptRoot "build-backend.ps1")
+& (Join-Path $PSScriptRoot "smoke-backend-windows.ps1")
 
 Push-Location $root
 try {

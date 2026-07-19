@@ -15,9 +15,35 @@ import {
   ShieldCheckmark24Regular,
 } from "@fluentui/react-icons";
 import { api } from "../api/client";
+import {
+  getBackendRuntimeStatus,
+  reportFrontendReady,
+  restartBackend,
+  type BackendRuntimeStatus,
+} from "../api/bootstrap";
 import { AppShell, type AppView } from "../components/AppShell";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import type { HealthResponse } from "../types/api";
+
+class BackendStoppedError extends Error {
+  constructor(readonly status: BackendRuntimeStatus) {
+    super(status.lastError ?? "The local backend process stopped.");
+    this.name = "BackendStoppedError";
+  }
+}
+
+async function loadBackendHealth(): Promise<HealthResponse> {
+  try {
+    return await api.health();
+  } catch (error) {
+    const status = await getBackendRuntimeStatus().catch(() => undefined);
+    if (status?.managed && !status.running && status.lastError) {
+      throw new BackendStoppedError(status);
+    }
+    throw error;
+  }
+}
 
 function preferredDarkMode(): boolean {
   return (
@@ -29,10 +55,13 @@ function preferredDarkMode(): boolean {
 export function App(): React.JSX.Element {
   const [view, setView] = useState<AppView>("projects");
   const [systemDark, setSystemDark] = useState(preferredDarkMode);
+  const [restarting, setRestarting] = useState(false);
+  const [runtimeStatus, setRuntimeStatus] = useState<BackendRuntimeStatus>();
   const healthQuery = useQuery({
     queryKey: ["health"],
-    queryFn: api.health,
-    retry: 60,
+    queryFn: loadBackendHealth,
+    retry: (failureCount, error) =>
+      !(error instanceof BackendStoppedError) && failureCount < 180,
     retryDelay: 500,
     staleTime: 10_000,
   });
@@ -55,12 +84,41 @@ export function App(): React.JSX.Element {
       settingsQuery.data?.brand_name ?? "ProjectMind Engineering AI";
   }, [settingsQuery.data?.brand_name]);
 
+  useEffect(() => {
+    if (healthQuery.isSuccess) {
+      void reportFrontendReady().catch(() => undefined);
+    } else if (healthQuery.isError) {
+      void getBackendRuntimeStatus()
+        .then(setRuntimeStatus)
+        .catch(() => setRuntimeStatus(undefined));
+    }
+  }, [healthQuery.isError, healthQuery.isSuccess]);
+
   const useDarkTheme = useMemo(() => {
     const selected = settingsQuery.data?.theme ?? "system";
     return selected === "dark" || (selected === "system" && systemDark);
   }, [settingsQuery.data?.theme, systemDark]);
 
   const theme = useDarkTheme ? webDarkTheme : webLightTheme;
+  const visibleRuntimeStatus =
+    healthQuery.error instanceof BackendStoppedError
+      ? healthQuery.error.status
+      : runtimeStatus;
+
+  const retryConnection = async (): Promise<void> => {
+    setRestarting(true);
+    try {
+      await restartBackend();
+      const result = await healthQuery.refetch();
+      if (result.isError) {
+        setRuntimeStatus(await getBackendRuntimeStatus());
+      }
+    } catch {
+      setRuntimeStatus(await getBackendRuntimeStatus().catch(() => undefined));
+    } finally {
+      setRestarting(false);
+    }
+  };
 
   if (healthQuery.isPending) {
     return (
@@ -88,12 +146,23 @@ export function App(): React.JSX.Element {
             ProjectMind could not connect to its local backend. No project data
             was sent externally.
           </Text>
+          {visibleRuntimeStatus?.lastError ? (
+            <Text className="startup-diagnostic" role="status">
+              {visibleRuntimeStatus.lastError}
+            </Text>
+          ) : null}
+          {visibleRuntimeStatus?.logPath ? (
+            <Text className="startup-log-path" size={200}>
+              Diagnostic log: {visibleRuntimeStatus.logPath}
+            </Text>
+          ) : null}
           <Button
             icon={<ArrowClockwise24Regular />}
             appearance="primary"
-            onClick={() => void healthQuery.refetch()}
+            disabled={restarting}
+            onClick={() => void retryConnection()}
           >
-            Retry connection
+            {restarting ? "Restarting local service…" : "Restart local service"}
           </Button>
         </div>
       </FluentProvider>

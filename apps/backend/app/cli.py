@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ipaddress
+import logging
 import os
 from pathlib import Path
 
@@ -11,7 +12,10 @@ import uvicorn
 from pydantic import SecretStr
 
 from app.core.config import AppConfig, Environment
+from app.core.logging import configure_logging
 from app.main import create_app
+
+logger = logging.getLogger(__name__)
 
 
 def _loopback_host(value: str) -> str:
@@ -61,11 +65,22 @@ def main() -> None:
             session_token=SecretStr(session_token),
             data_dir=args.data_dir,
         )
-    uvicorn.run(
-        create_app(config),
-        host=config.host,
-        port=config.port,
-        access_log=False,
-        log_config=None,
-        server_header=False,
+    config.prepare_directories()
+    configure_logging(
+        config.data_dir / "logs",
+        config.log_level,
+        (config.session_token.get_secret_value(),),
     )
+    logger.info("ProjectMind backend launch requested on loopback port %s", config.port)
+    try:
+        uvicorn.run(
+            create_app(config),
+            host=config.host,
+            port=config.port,
+            access_log=False,
+            log_config=None,
+            server_header=False,
+        )
+    except BaseException:
+        logger.exception("ProjectMind backend failed during startup")
+        raise

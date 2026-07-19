@@ -15,7 +15,7 @@ describe("API client", () => {
       new Response(
         JSON.stringify({
           status: "ok",
-          version: "0.1.0",
+          version: "0.1.1",
           database: "ok",
           environment: "test",
           timestamp: "2026-07-18T00:00:00Z",

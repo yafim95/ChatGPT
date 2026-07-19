@@ -6,6 +6,13 @@ export interface BackendBootstrap {
   managed: boolean;
 }
 
+export interface BackendRuntimeStatus {
+  running: boolean;
+  managed: boolean;
+  lastError?: string;
+  logPath: string;
+}
+
 let bootstrapPromise: Promise<BackendBootstrap> | undefined;
 
 async function loadBootstrap(): Promise<BackendBootstrap> {
@@ -26,6 +33,29 @@ async function loadBootstrap(): Promise<BackendBootstrap> {
 export function getBackendBootstrap(): Promise<BackendBootstrap> {
   bootstrapPromise ??= loadBootstrap();
   return bootstrapPromise;
+}
+
+export async function restartBackend(): Promise<BackendBootstrap> {
+  const bootstrap = isTauri()
+    ? await invoke<BackendBootstrap>("restart_backend")
+    : await loadBootstrap();
+  bootstrapPromise = Promise.resolve(bootstrap);
+  return bootstrap;
+}
+
+export async function getBackendRuntimeStatus(): Promise<
+  BackendRuntimeStatus | undefined
+> {
+  if (!isTauri()) {
+    return undefined;
+  }
+  return invoke<BackendRuntimeStatus>("backend_runtime_status");
+}
+
+export async function reportFrontendReady(): Promise<void> {
+  if (isTauri()) {
+    await invoke("report_frontend_ready");
+  }
 }
 
 export function resetBackendBootstrapForTests(): void {

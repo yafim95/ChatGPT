@@ -2,6 +2,20 @@
 
 All notable changes are documented here. The project follows semantic versioning once the first stable release is published.
 
+## 0.1.1 — 2026-07-19
+
+### Fixed
+
+- Restart the packaged backend when recovery is requested instead of repeating a failed HTTP call.
+- Preserve local desktop-side diagnostics for sidecar launch, stderr, and termination events.
+- Capture backend failures that occur before the ASGI lifespan starts.
+- Allow additional startup time for PyInstaller one-file extraction and endpoint protection scans.
+
+### Changed
+
+- Add direct packaged-backend and installed-desktop runtime smoke tests to the Windows build.
+- Show the local diagnostic log path and sanitized process failure on the recovery screen.
+
 ## 0.1.0 — 2026-07-18
 
 ### Added

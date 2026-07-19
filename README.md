@@ -102,4 +102,4 @@ ProjectMind assists qualified professionals; it does not replace engineering jud
 
 ## Status
 
-Version `0.1.0` — Phase 1 foundation. See [CHANGELOG.md](CHANGELOG.md).
+Version `0.1.1` — Phase 1 runtime reliability update. See [CHANGELOG.md](CHANGELOG.md).
