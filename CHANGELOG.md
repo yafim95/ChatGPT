@@ -2,6 +2,16 @@
 
 All notable changes are documented here. The project follows semantic versioning once the first stable release is published.
 
+## 0.1.2 — 2026-07-26
+
+### Fixed
+
+- Complete an interrupted initial SQLite migration without deleting existing tables or rows.
+- Commit SQLite setup before Alembic runs so the recorded schema revision persists.
+- Preserve migration and startup exceptions in `application.log`.
+- Treat informational backend `stderr` output as diagnostics rather than a startup error.
+- Report backend termination as the actionable failure instead of retaining an earlier informational line.
+
 ## 0.1.1 — 2026-07-19
 
 ### Fixed

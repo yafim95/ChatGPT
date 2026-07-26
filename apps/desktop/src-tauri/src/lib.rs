@@ -222,26 +222,21 @@ fn launch_sidecar(
                 }
                 CommandEvent::Stderr(bytes) => {
                     let text = String::from_utf8_lossy(&bytes);
-                    let message = format!("Backend reported a startup error: {text}");
-                    append_desktop_log(&process.log_path, &message);
-                    if let Ok(mut state) = process.state.lock() {
-                        if state.generation == generation {
-                            state.last_error = Some(message);
-                        }
-                    }
+                    append_desktop_log(&process.log_path, &format!("backend stderr: {text}"));
                 }
                 CommandEvent::Error(error) => {
                     let message = format!("Backend process error: {error}");
                     record_launch_error(process.inner(), generation, message);
                 }
                 CommandEvent::Terminated(payload) => {
-                    let message = format!("Backend process terminated: {payload:?}");
+                    let message = format!(
+                        "The local backend stopped unexpectedly ({payload:?}). \
+                         See application.log in the diagnostic folder."
+                    );
                     append_desktop_log(&process.log_path, &message);
                     if let Ok(mut state) = process.state.lock() {
                         if state.generation == generation {
-                            if state.last_error.is_none() {
-                                state.last_error = Some(message);
-                            }
+                            state.last_error = Some(message);
                             state.child = None;
                         }
                     }

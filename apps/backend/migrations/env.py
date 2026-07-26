@@ -8,7 +8,10 @@ from sqlalchemy import engine_from_config, pool
 
 config = context.config
 
-if config.config_file_name is not None:
+if (
+    config.config_file_name is not None
+    and not config.attributes.get("preserve_application_logging", False)
+):
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
@@ -36,6 +39,10 @@ def run_migrations_online() -> None:
     )
     with connectable.connect() as connection:
         connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+        # PRAGMA starts SQLAlchemy's implicit transaction. Commit it before
+        # Alembic opens its migration transaction so the revision row is not
+        # rolled back when this connection closes.
+        connection.commit()
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

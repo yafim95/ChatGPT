@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$BackendPath,
-    [int]$TimeoutSeconds = 90
+    [int]$TimeoutSeconds = 90,
+    [switch]$SeedInterruptedMigration
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,6 +19,55 @@ if ([string]::IsNullOrWhiteSpace($BackendPath)) {
 $BackendPath = (Resolve-Path $BackendPath).Path
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("projectmind-sidecar-smoke-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $testRoot | Out-Null
+$databasePath = Join-Path $testRoot "projectmind.db"
+
+if ($SeedInterruptedMigration) {
+    $pythonPath = Join-Path $root "apps/backend/.venv/Scripts/python.exe"
+    if (-not (Test-Path $pythonPath)) {
+        throw "The backend virtual-environment Python was not found."
+    }
+    $seedCode = @'
+import sqlite3
+import sys
+
+connection = sqlite3.connect(sys.argv[1])
+connection.executescript(
+    """
+    CREATE TABLE projects (
+        id VARCHAR(36) NOT NULL,
+        name VARCHAR(200) NOT NULL,
+        project_number VARCHAR(80) NOT NULL,
+        client VARCHAR(200),
+        consultant VARCHAR(200),
+        contractor VARCHAR(200),
+        description TEXT,
+        status VARCHAR(30) NOT NULL,
+        deleted_at DATETIME,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL,
+        PRIMARY KEY (id),
+        UNIQUE (project_number)
+    );
+    INSERT INTO projects (
+        id, name, project_number, status, created_at, updated_at
+    ) VALUES (
+        '00000000-0000-0000-0000-000000000001',
+        'Interrupted migration project',
+        'SYNTHETIC-001',
+        'active',
+        '2026-07-26T00:00:00Z',
+        '2026-07-26T00:00:00Z'
+    );
+    """
+)
+connection.commit()
+connection.close()
+'@
+    & $pythonPath -c $seedCode $databasePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not seed the interrupted-migration smoke database."
+    }
+}
 
 $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
 $listener.Start()
@@ -115,4 +165,25 @@ if ($failure) {
         Write-Host "Backend application log:`n$(Get-Content -Raw $applicationLog)"
     }
     throw "Packaged backend smoke test failed: $failure"
+}
+
+if ($SeedInterruptedMigration) {
+    $verificationCode = @'
+import sqlite3
+import sys
+
+connection = sqlite3.connect(sys.argv[1])
+revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
+project = connection.execute(
+    "SELECT name FROM projects WHERE project_number = 'SYNTHETIC-001'"
+).fetchone()
+connection.close()
+assert revision == ("20260718_0001",), revision
+assert project == ("Interrupted migration project",), project
+'@
+    & $pythonPath -c $verificationCode $databasePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "The packaged backend did not preserve and complete the interrupted migration."
+    }
+    Write-Host "Interrupted-migration recovery smoke test passed."
 }

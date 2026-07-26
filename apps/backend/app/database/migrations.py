@@ -21,6 +21,7 @@ def _resource_root() -> Path:
 def run_migrations(settings: AppConfig) -> None:
     root = _resource_root()
     config = Config(str(root / "alembic.ini"))
+    config.attributes["preserve_application_logging"] = True
     config.set_main_option("script_location", str(root / "migrations"))
     config.set_main_option("sqlalchemy.url", settings.sync_database_url.replace("%", "%%"))
     command.upgrade(config, "head")
