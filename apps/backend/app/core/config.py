@@ -28,7 +28,7 @@ class AppConfig(BaseSettings):
     )
 
     app_name: str = "ProjectMind Engineering AI"
-    app_version: str = "0.1.2"
+    app_version: str = "0.1.3"
     environment: Environment = Environment.PRODUCTION
     host: str = "127.0.0.1"
     port: int = Field(default=8765, ge=1, le=65535)

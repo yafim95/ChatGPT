@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -16,11 +16,18 @@ import {
 } from "@fluentui/react-components";
 import { Add24Regular, Briefcase24Regular } from "@fluentui/react-icons";
 import { api, ApiClientError } from "../api/client";
+import { reportFrontendReady } from "../api/bootstrap";
 import { ProjectCard } from "../components/ProjectCard";
 import { ProjectFormDialog } from "../components/ProjectFormDialog";
 import type { Project, ProjectPayload } from "../types/api";
 
-export function ProjectsPage(): React.JSX.Element {
+interface ProjectsPageProps {
+  settingsReady: boolean;
+}
+
+export function ProjectsPage({
+  settingsReady,
+}: ProjectsPageProps): React.JSX.Element {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project>();
@@ -30,6 +37,12 @@ export function ProjectsPage(): React.JSX.Element {
     queryKey: ["projects"],
     queryFn: api.listProjects,
   });
+
+  useEffect(() => {
+    if (settingsReady && !projectsQuery.isPending) {
+      void reportFrontendReady().catch(() => undefined);
+    }
+  }, [projectsQuery.isPending, settingsReady]);
 
   const saveMutation = useMutation({
     mutationFn: async (payload: ProjectPayload) =>

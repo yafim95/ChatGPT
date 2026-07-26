@@ -27,6 +27,79 @@ textarea {
   font: inherit;
 }
 
+.frontend-failure {
+  display: flex;
+  width: 100%;
+  min-width: 980px;
+  height: 100%;
+  min-height: 680px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+  padding: 40px;
+  color: #f5f5f5;
+  text-align: center;
+  background: #1f1f1f;
+}
+
+.frontend-failure__mark {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border-radius: 16px;
+  color: #ff99a4;
+  background: #4f1118;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.frontend-failure h1,
+.frontend-failure p {
+  margin: 0;
+}
+
+.frontend-failure p {
+  max-width: 620px;
+  color: #c7c7c7;
+}
+
+.frontend-failure code {
+  max-width: min(760px, 100%);
+  overflow-wrap: anywhere;
+  color: #c7c7c7;
+}
+
+.frontend-failure details {
+  width: min(760px, 100%);
+  max-height: 220px;
+  overflow: auto;
+  padding: 10px 14px;
+  border: 1px solid #666;
+  border-radius: 8px;
+  text-align: left;
+  background: #292929;
+}
+
+.frontend-failure summary {
+  cursor: pointer;
+}
+
+.frontend-failure pre {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.frontend-failure button {
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: #0f6cbd;
+  cursor: pointer;
+}
+
 .app-frame {
   display: grid;
   grid-template-columns: 244px minmax(0, 1fr);

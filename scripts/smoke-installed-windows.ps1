@@ -73,6 +73,7 @@ if (-not $applicationPath) {
 $dataDir = Join-Path $env:LOCALAPPDATA $identifier
 $desktopLog = Join-Path $dataDir "logs/desktop.log"
 $applicationLog = Join-Path $dataDir "logs/application.log"
+$frontendReadyMarker = "frontend connected to local backend; initial interface rendered"
 $application = Start-Process -FilePath $applicationPath -PassThru
 $failure = $null
 $ready = $false
@@ -85,7 +86,7 @@ try {
         }
         if (Test-Path $desktopLog) {
             $logText = Get-Content -Raw $desktopLog
-            if ($logText.Contains("frontend connected to local backend")) {
+            if ($logText.Contains($frontendReadyMarker)) {
                 $ready = $true
                 break
             }

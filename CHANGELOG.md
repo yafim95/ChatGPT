@@ -2,6 +2,19 @@
 
 All notable changes are documented here. The project follows semantic versioning once the first stable release is published.
 
+## 0.1.3 — 2026-07-26
+
+### Fixed
+
+- Start the Windows interface with a fresh, versioned WebView profile so a stale or damaged renderer cache cannot leave the application blank after an upgrade.
+- Catch React render failures and show a recoverable local diagnostic screen instead of an empty window.
+- Record sanitized frontend exceptions and rejected promises in `desktop.log`.
+
+### Changed
+
+- Mark the frontend ready only after application settings and the initial project view have rendered.
+- Require the installed-Windows smoke test to observe the complete interface-rendered marker rather than only a successful backend connection.
+
 ## 0.1.2 — 2026-07-26
 
 ### Fixed

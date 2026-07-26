@@ -100,10 +100,31 @@ fn restart_backend(
 
 #[tauri::command]
 fn report_frontend_ready(process: State<'_, BackendProcess>) {
-    append_desktop_log(&process.log_path, "frontend connected to local backend");
+    append_desktop_log(
+        &process.log_path,
+        "frontend connected to local backend; initial interface rendered",
+    );
     if let Ok(mut state) = process.state.lock() {
         state.last_error = None;
     }
+}
+
+#[tauri::command]
+fn report_frontend_diagnostic(
+    process: State<'_, BackendProcess>,
+    event: String,
+    detail: String,
+) {
+    let event: String = event
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
+        .take(80)
+        .collect();
+    let detail: String = detail.chars().take(4_000).collect();
+    append_desktop_log(
+        &process.log_path,
+        &format!("frontend diagnostic [{event}]: {detail}"),
+    );
 }
 
 fn reserve_loopback_port() -> Result<u16, Box<dyn std::error::Error>> {
@@ -283,7 +304,8 @@ pub fn run() {
             backend_bootstrap,
             backend_runtime_status,
             restart_backend,
-            report_frontend_ready
+            report_frontend_ready,
+            report_frontend_diagnostic
         ])
         .build(tauri::generate_context!())
         .expect("failed to build ProjectMind desktop application");

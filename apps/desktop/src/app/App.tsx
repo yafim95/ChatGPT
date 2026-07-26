@@ -17,7 +17,6 @@ import {
 import { api } from "../api/client";
 import {
   getBackendRuntimeStatus,
-  reportFrontendReady,
   restartBackend,
   type BackendRuntimeStatus,
 } from "../api/bootstrap";
@@ -85,14 +84,12 @@ export function App(): React.JSX.Element {
   }, [settingsQuery.data?.brand_name]);
 
   useEffect(() => {
-    if (healthQuery.isSuccess) {
-      void reportFrontendReady().catch(() => undefined);
-    } else if (healthQuery.isError) {
+    if (healthQuery.isError) {
       void getBackendRuntimeStatus()
         .then(setRuntimeStatus)
         .catch(() => setRuntimeStatus(undefined));
     }
-  }, [healthQuery.isError, healthQuery.isSuccess]);
+  }, [healthQuery.isError]);
 
   const useDarkTheme = useMemo(() => {
     const selected = settingsQuery.data?.theme ?? "system";
@@ -179,7 +176,11 @@ export function App(): React.JSX.Element {
         health={healthQuery.data}
         onViewChange={setView}
       >
-        {view === "projects" ? <ProjectsPage /> : <SettingsPage />}
+        {view === "projects" ? (
+          <ProjectsPage settingsReady={!settingsQuery.isPending} />
+        ) : (
+          <SettingsPage />
+        )}
       </AppShell>
     </FluentProvider>
   );
