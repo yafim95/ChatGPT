@@ -1,7 +1,9 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { reportVisibleInterface } from "../app/rendererLifecycle";
 
 export interface BackendBootstrap {
   baseUrl: string;
+  rendererLaunchId: string;
   sessionToken: string;
   managed: boolean;
 }
@@ -27,7 +29,12 @@ async function loadBootstrap(): Promise<BackendBootstrap> {
       "VITE_BACKEND_TOKEN is required when the interface runs outside Tauri.",
     );
   }
-  return { baseUrl, sessionToken, managed: false };
+  return {
+    baseUrl,
+    rendererLaunchId: "browser-development",
+    sessionToken,
+    managed: false,
+  };
 }
 
 export function getBackendBootstrap(): Promise<BackendBootstrap> {
@@ -53,9 +60,7 @@ export async function getBackendRuntimeStatus(): Promise<
 }
 
 export async function reportFrontendReady(): Promise<void> {
-  if (isTauri()) {
-    await invoke("report_frontend_ready");
-  }
+  await reportVisibleInterface();
 }
 
 export function resetBackendBootstrapForTests(): void {

@@ -4,6 +4,7 @@ import {
   describeFrontendError,
   reportFrontendDiagnostic,
 } from "./frontendDiagnostics";
+import { openDiagnosticsFolder, resetRenderer } from "./rendererLifecycle";
 
 interface FrontendErrorBoundaryProps {
   children: ReactNode;
@@ -39,7 +40,7 @@ export class FrontendErrorBoundary extends Component<
     }
 
     return (
-      <main className="frontend-failure" role="alert">
+      <main className="frontend-failure" data-projectmind-surface role="alert">
         <div className="frontend-failure__mark" aria-hidden="true">
           !
         </div>
@@ -55,9 +56,17 @@ export class FrontendErrorBoundary extends Component<
           <summary>Technical detail</summary>
           <pre>{this.state.message}</pre>
         </details>
-        <button type="button" onClick={() => window.location.reload()}>
-          Reload interface
-        </button>
+        <div className="frontend-failure__actions">
+          <button type="button" onClick={() => window.location.reload()}>
+            Reload interface
+          </button>
+          <button type="button" onClick={() => void resetRenderer()}>
+            Reset interface cache
+          </button>
+          <button type="button" onClick={() => void openDiagnosticsFolder()}>
+            Open diagnostics folder
+          </button>
+        </div>
       </main>
     );
   }

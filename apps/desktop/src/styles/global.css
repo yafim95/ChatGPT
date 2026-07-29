@@ -91,13 +91,25 @@ textarea {
   white-space: pre-wrap;
 }
 
+.frontend-failure__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
 .frontend-failure button {
   padding: 8px 18px;
-  border: 0;
+  border: 1px solid #666;
   border-radius: 6px;
   color: #fff;
-  background: #0f6cbd;
+  background: #333;
   cursor: pointer;
+}
+
+.frontend-failure button:first-child {
+  border-color: #0f6cbd;
+  background: #0f6cbd;
 }
 
 .app-frame {

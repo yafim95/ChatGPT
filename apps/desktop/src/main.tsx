@@ -5,6 +5,7 @@ import { App } from "./app/App";
 import { FrontendErrorBoundary } from "./app/FrontendErrorBoundary";
 import { installGlobalFrontendDiagnostics } from "./app/frontendDiagnostics";
 import { queryClient } from "./app/queryClient";
+import { reportRendererMounted } from "./app/rendererLifecycle";
 import "./styles/global.css";
 
 installGlobalFrontendDiagnostics();
@@ -23,3 +24,5 @@ createRoot(root).render(
     </FrontendErrorBoundary>
   </StrictMode>,
 );
+
+void reportRendererMounted();

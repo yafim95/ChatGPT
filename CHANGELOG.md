@@ -2,6 +2,28 @@
 
 All notable changes are documented here. The project follows semantic versioning once the first stable release is published.
 
+## 0.1.4 — 2026-07-28
+
+### Fixed
+
+- Package the production interface as one self-contained HTML asset so Windows endpoint controls, custom-protocol asset resolution, or a failed secondary asset request cannot leave the WebView empty.
+- Render a useful startup surface directly in `index.html`, before React or the application bundle executes.
+- Add a native startup watchdog that replaces an unmounted renderer with a recovery screen instead of allowing a blank window.
+- Make the installed-Windows smoke test accept only launch-scoped renderer evidence; stale success lines from an older process can no longer pass the test.
+
+### Added
+
+- Record a unique renderer launch ID, native page-load events, WebView runtime version, document-start errors, mount evidence, and visible-interface dimensions in `desktop.log`.
+- Validate that the rendered surface has useful text and non-zero visible dimensions before declaring the application ready.
+- Provide recovery actions to reload the interface, clear only WebView browsing data, and open the diagnostics directory. Project databases and local documents are never cleared by these actions.
+- Rotate oversized desktop logs while retaining the immediately previous log.
+- Preserve installed-application smoke-test logs with the Windows CI artifact for failed-launch diagnosis.
+
+### Changed
+
+- Target ES2020 and relative asset paths for broader WebView2 compatibility.
+- Use a new `webview-v0.1.4` renderer profile while leaving the SQLite data directory and all project rows untouched.
+
 ## 0.1.3 — 2026-07-26
 
 ### Fixed

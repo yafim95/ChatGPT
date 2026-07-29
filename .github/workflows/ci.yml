@@ -72,4 +72,5 @@ jobs:
             apps/desktop/src-tauri/Cargo.lock
             apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
             ${{ runner.temp }}/projectmind-sidecar-smoke-*/logs/*.log
+            ${{ runner.temp }}/projectmind-installed-smoke-logs/*
           if-no-files-found: error

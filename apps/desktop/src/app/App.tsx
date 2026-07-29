@@ -120,7 +120,7 @@ export function App(): React.JSX.Element {
   if (healthQuery.isPending) {
     return (
       <FluentProvider theme={theme} className="root-provider">
-        <div className="startup-state">
+        <div className="startup-state" data-projectmind-surface>
           <div className="startup-mark">
             <ShieldCheckmark24Regular />
           </div>
@@ -134,7 +134,10 @@ export function App(): React.JSX.Element {
   if (healthQuery.isError) {
     return (
       <FluentProvider theme={theme} className="root-provider">
-        <div className="startup-state startup-state--error">
+        <div
+          className="startup-state startup-state--error"
+          data-projectmind-surface
+        >
           <div className="startup-mark startup-mark--error">
             <ErrorCircle24Regular />
           </div>

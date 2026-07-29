@@ -26,7 +26,7 @@ export function AppShell({
   children,
 }: AppShellProps): React.JSX.Element {
   return (
-    <div className="app-frame">
+    <div className="app-frame" data-projectmind-surface>
       <aside className="sidebar">
         <div className="brand-block">
           <div className="brand-mark" aria-hidden="true">

@@ -73,10 +73,24 @@ if (-not $applicationPath) {
 $dataDir = Join-Path $env:LOCALAPPDATA $identifier
 $desktopLog = Join-Path $dataDir "logs/desktop.log"
 $applicationLog = Join-Path $dataDir "logs/application.log"
-$frontendReadyMarker = "frontend connected to local backend; initial interface rendered"
+$smokeLogDirectory = if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+    $null
+}
+else {
+    Join-Path $env:RUNNER_TEMP "projectmind-installed-smoke-logs"
+}
+$expectedVersion = "0.1.4"
+$baselineLineCount = if (Test-Path $desktopLog) {
+    @(Get-Content $desktopLog).Count
+}
+else {
+    0
+}
 $application = Start-Process -FilePath $applicationPath -PassThru
 $failure = $null
 $ready = $false
+$launchId = $null
+$newDesktopLines = @()
 
 try {
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
@@ -85,18 +99,66 @@ try {
             throw "The installed desktop application exited early (exit code $($application.ExitCode))."
         }
         if (Test-Path $desktopLog) {
-            $logText = Get-Content -Raw $desktopLog
-            if ($logText.Contains($frontendReadyMarker)) {
-                $ready = $true
-                break
+            $allLines = @(Get-Content $desktopLog)
+            $newDesktopLines = if ($allLines.Count -ge $baselineLineCount) {
+                @($allLines | Select-Object -Skip $baselineLineCount)
+            }
+            else {
+                # The desktop rotates an oversized log before writing this launch.
+                $allLines
+            }
+
+            if (-not $launchId) {
+                $launchLine = $newDesktopLines |
+                    Where-Object {
+                        $_ -match "desktop launch \[version=$([regex]::Escape($expectedVersion)) launch=([A-Za-z0-9_-]+)\]"
+                    } |
+                    Select-Object -Last 1
+                if ($launchLine -and
+                    $launchLine -match "launch=([A-Za-z0-9_-]+)\]") {
+                    $launchId = $Matches[1]
+                }
+            }
+
+            if ($launchId) {
+                $escapedLaunchId = [regex]::Escape($launchId)
+                $mounted = $newDesktopLines |
+                    Where-Object {
+                        $_ -match "renderer mounted \[launch=$escapedLaunchId\]"
+                    } |
+                    Select-Object -First 1
+                $readyLine = $newDesktopLines |
+                    Where-Object {
+                        $_ -match "renderer ready \[launch=$escapedLaunchId\] interface_visible=true"
+                    } |
+                    Select-Object -First 1
+                $watchdog = $newDesktopLines |
+                    Where-Object {
+                        $_ -match "renderer watchdog timeout \[launch=$escapedLaunchId\]"
+                    } |
+                    Select-Object -First 1
+
+                if ($watchdog) {
+                    throw "The renderer watchdog fired for launch $launchId."
+                }
+                if ($mounted -and $readyLine) {
+                    $ready = $true
+                    break
+                }
             }
         }
         Start-Sleep -Milliseconds 500
     }
     if (-not $ready) {
-        throw "The installed desktop application did not connect to its backend within $TimeoutSeconds seconds."
+        throw (
+            "The installed desktop application did not provide fresh visible " +
+            "interface evidence within $TimeoutSeconds seconds."
+        )
     }
-    Write-Host "Installed desktop smoke test passed: $applicationPath"
+    Write-Host (
+        "Installed desktop smoke test passed for launch $launchId`: " +
+        "$applicationPath"
+    )
 }
 catch {
     $failure = $_.Exception.Message
@@ -106,10 +168,30 @@ finally {
         $application.Kill($true)
         [void]$application.WaitForExit(10000)
     }
+    if ($smokeLogDirectory) {
+        try {
+            [void](New-Item -ItemType Directory -Force -Path $smokeLogDirectory)
+            @(
+                $desktopLog,
+                "${desktopLog}.previous",
+                $applicationLog
+            ) |
+                Where-Object { Test-Path $_ } |
+                ForEach-Object {
+                    Copy-Item -Force $_ $smokeLogDirectory
+                }
+        }
+        catch {
+            Write-Warning "Could not preserve installed smoke-test logs: $($_.Exception.Message)"
+        }
+    }
 }
 
 if ($failure) {
-    if (Test-Path $desktopLog) {
+    if ($newDesktopLines.Count -gt 0) {
+        Write-Host "Desktop log for this launch:`n$($newDesktopLines -join "`n")"
+    }
+    elseif (Test-Path $desktopLog) {
         Write-Host "Desktop log:`n$(Get-Content -Raw $desktopLog)"
     }
     if (Test-Path $applicationLog) {
