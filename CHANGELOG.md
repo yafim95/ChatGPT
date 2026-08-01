@@ -2,6 +2,34 @@
 
 All notable changes are documented here. The project follows semantic versioning once the first stable release is published.
 
+## 0.2.0 — 2026-08-01
+
+### Added
+
+- Replace the single-purpose project page with a polished persistent application shell, Home dashboard, project list, workspace breadcrumbs, back navigation, and dedicated Documents, Ask Project, Reviews, and Project Settings sections.
+- Add separate active/archived portfolio views and project restoration so archiving is reversible from the UI.
+- Select a local project folder through a native Windows folder picker, scan it manually or on project open, and reveal source files in File Explorer.
+- Extract searchable text from PDF, DOCX, XLSX/XLSM, CSV, Markdown, and text files while leaving originals untouched.
+- Track SHA-256 duplicates, file revisions, current/superseded versions, missing files, extraction failures, and image-only files that need OCR.
+- Add SQLite FTS5 content search, document previews, exact evidence excerpts, and optional historical-version search.
+- Add evidence-only, project, and general chat modes with saved local conversation history and source-linked responses.
+- Add draft engineering review workflows for material submittals, method statements/MSRAs, ITPs, shop drawings, technical reports, and general reviews.
+- Add a configurable Kimi/OpenAI-compatible provider adapter, Windows DPAPI-protected API-key storage, connection testing, K3 reasoning-effort control, timeouts, and output limits.
+- Add modular settings for appearance, startup, retrieval, privacy, automatic/manual backups, diagnostic logging, storage locations, and safe WebView recovery.
+- Add pre-migration safety copies, dashboard/project summaries, migration coverage, provider-contract tests, knowledge-workflow tests, and persistent-navigation UI coverage.
+
+### Changed
+
+- Use the current official `kimi-k3` Chat Completions contract: omit fixed sampling parameters, send `reasoning_effort`, and preserve complete assistant messages for valid multi-turn reasoning.
+- Use a fresh `webview-v0.2.0` renderer profile while preserving the application database, indexed records, projects, and selected source folders.
+- Rename the workflow from Phase 1 CI to ProjectMind CI and make the packaged Windows smoke test verify project creation, document scanning, FTS search, and backup creation in addition to startup.
+
+### Safety and limits
+
+- External AI remains disabled by default. Local scanning, indexing, search, preview, settings, and backups do not require it.
+- ProjectMind sends only the current prompt, project identity, selected retrieved excerpts, and limited conversation context when external AI is enabled; it does not upload the project folder.
+- OCR, vector retrieval, structured controlled memory, document export, and release signing remain future work and are not represented as completed controls.
+
 ## 0.1.4 — 2026-07-28
 
 ### Fixed

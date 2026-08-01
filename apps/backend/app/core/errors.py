@@ -33,3 +33,13 @@ class NotFoundError(ProjectMindError):
 class ConflictError(ProjectMindError):
     def __init__(self, message: str) -> None:
         super().__init__(status_code=409, code="conflict", message=message)
+
+
+class ConfigurationError(ProjectMindError):
+    def __init__(self, message: str, *, code: str = "configuration_required") -> None:
+        super().__init__(status_code=409, code=code, message=message)
+
+
+class ExternalServiceError(ProjectMindError):
+    def __init__(self, message: str, *, code: str = "provider_error") -> None:
+        super().__init__(status_code=502, code=code, message=message)

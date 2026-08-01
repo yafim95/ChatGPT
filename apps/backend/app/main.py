@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -18,12 +18,25 @@ from starlette.responses import Response
 from app.api.router import router
 from app.core.config import AppConfig
 from app.core.errors import ProjectMindError
-from app.core.logging import configure_logging
+from app.core.logging import configure_logging, set_diagnostic_logging_enabled
+from app.core.secrets import SecretStore
 from app.core.security import has_valid_session
 from app.database.migrations import run_migrations
 from app.database.session import Database
+from app.services.maintenance import MaintenanceService, create_pre_migration_backup
+from app.services.settings import ApplicationSettingsService
 
 logger = logging.getLogger(__name__)
+
+
+async def _automatic_backup_loop(database: Database, config: AppConfig) -> None:
+    while True:
+        await asyncio.sleep(60 * 60)
+        try:
+            async with database.session_factory() as session:
+                await MaintenanceService().maybe_create_automatic_backup(session, config)
+        except Exception:
+            logger.exception("Scheduled automatic database backup failed")
 
 
 def _error_payload(
@@ -51,13 +64,40 @@ def create_app(settings: AppConfig | None = None) -> FastAPI:
         config.prepare_directories()
         token = config.session_token.get_secret_value()
         configure_logging(config.data_dir / "logs", config.log_level, (token,))
+        safety_copy = await asyncio.to_thread(
+            create_pre_migration_backup,
+            config,
+            "20260801_0002",
+        )
+        if safety_copy is not None:
+            logger.info("Created pre-migration safety backup: %s", safety_copy.name)
         await asyncio.to_thread(run_migrations, config)
         database = Database(config)
         app.state.database = database
+        app.state.secret_store = SecretStore(config.data_dir, config.environment)
+        backup_task: asyncio.Task[None] | None = None
+        try:
+            async with database.session_factory() as startup_session:
+                application_settings = await ApplicationSettingsService().get(startup_session)
+                set_diagnostic_logging_enabled(application_settings.diagnostic_logging_enabled)
+                await MaintenanceService().maybe_create_automatic_backup(
+                    startup_session,
+                    config,
+                )
+        except Exception:
+            logger.exception("Automatic database backup failed during startup")
+        backup_task = asyncio.create_task(
+            _automatic_backup_loop(database, config),
+            name="projectmind-automatic-backups",
+        )
         logger.info("ProjectMind backend started on loopback port %s", config.port)
         try:
             yield
         finally:
+            if backup_task is not None:
+                backup_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await backup_task
             await database.close()
             logger.info("ProjectMind backend stopped")
 
@@ -75,7 +115,7 @@ def create_app(settings: AppConfig | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=list(config.allowed_origins),
         allow_credentials=False,
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "X-ProjectMind-Session", "X-Request-ID"],
     )
     app.add_middleware(

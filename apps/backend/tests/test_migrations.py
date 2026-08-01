@@ -11,7 +11,7 @@ from pydantic import SecretStr
 from sqlalchemy import create_engine, inspect, text
 
 
-async def test_foundation_migration_created_expected_tables(
+async def test_product_migrations_created_expected_tables(
     app: FastAPI,
     tmp_path: Path,
 ) -> None:
@@ -25,15 +25,21 @@ async def test_foundation_migration_created_expected_tables(
         "alembic_version",
         "application_settings",
         "audit_events",
+        "chat_messages",
+        "conversations",
+        "document_search",
+        "documents",
         "project_settings",
         "projects",
+        "review_records",
     }.issubset(set(tables))
     application_log = (tmp_path / "logs" / "application.log").read_text(encoding="utf-8")
     assert '"logger": "alembic.runtime.migration"' in application_log
     assert "Running upgrade  -> 20260718_0001" in application_log
+    assert "Running upgrade 20260718_0001 -> 20260801_0002" in application_log
 
 
-def test_foundation_migration_recovers_interrupted_initialization(tmp_path: Path) -> None:
+def test_product_migration_recovers_interrupted_initialization(tmp_path: Path) -> None:
     settings = AppConfig(
         environment=Environment.TEST,
         session_token=SecretStr("synthetic-migration-token"),
@@ -73,5 +79,5 @@ def test_foundation_migration_recovers_interrupted_initialization(tmp_path: Path
         "project_settings",
         "projects",
     }.issubset(tables)
-    assert revision == "20260718_0001"
+    assert revision == "20260801_0002"
     assert preserved_name == "Interrupted migration project"

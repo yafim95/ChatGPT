@@ -1,5 +1,7 @@
 # Phase 1 — Foundation
 
+> Historical verification record for version 0.1.0. The current 0.2.0 product also includes the usable document, exact-search, Kimi chat, draft-review, backup, and modular-settings baselines described in the implementation plan.
+
 ## Objective
 
 Deliver a runnable Windows desktop foundation that can create and manage project workspaces safely, persist settings, monitor its local backend, migrate data, and progress to document ingestion without replacing the architecture.
@@ -47,6 +49,6 @@ Deliver a runnable Windows desktop foundation that can create and manage project
 
 The build output is an NSIS setup executable. The final-user machine does not require Python, Node.js, Rust, Docker, or a database server.
 
-## Deferred by design
+## Deferred by design in Phase 1
 
-Phase 1 does not import documents, index text, call an AI provider, or claim that an installer has been release-signed. Those gates begin in Phases 2, 3, 4, and 6 respectively.
+Version 0.1.0 did not import documents, index text, call an AI provider, or claim that an installer had been release-signed. Version 0.2.0 implements the first three as controlled working baselines; release signing remains a release-management gate.

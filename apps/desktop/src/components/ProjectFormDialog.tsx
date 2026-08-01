@@ -9,13 +9,18 @@ import {
   DialogTitle,
   Field,
   Input,
+  MessageBar,
+  MessageBarBody,
   Textarea,
 } from "@fluentui/react-components";
+import { FolderOpen20Regular } from "@fluentui/react-icons";
+import { nativeErrorMessage, selectProjectFolder } from "../api/native";
 import type { Project, ProjectPayload } from "../types/api";
 
 interface ProjectFormDialogProps {
   open: boolean;
   project?: Project;
+  defaultWorkspacePath?: string | null;
   saving: boolean;
   error?: string;
   onDismiss: () => void;
@@ -29,6 +34,7 @@ interface ProjectFormState {
   consultant: string;
   contractor: string;
   description: string;
+  workspacePath: string;
 }
 
 const emptyForm: ProjectFormState = {
@@ -38,11 +44,13 @@ const emptyForm: ProjectFormState = {
   consultant: "",
   contractor: "",
   description: "",
+  workspacePath: "",
 };
 
 export function ProjectFormDialog({
   open,
   project,
+  defaultWorkspacePath,
   saving,
   error,
   onDismiss,
@@ -57,13 +65,28 @@ export function ProjectFormDialog({
           consultant: project.consultant ?? "",
           contractor: project.contractor ?? "",
           description: project.description ?? "",
+          workspacePath: project.settings.workspace_path ?? "",
         }
-      : emptyForm,
+      : { ...emptyForm, workspacePath: defaultWorkspacePath ?? "" },
   );
   const [submitted, setSubmitted] = useState(false);
+  const [folderError, setFolderError] = useState<string>();
 
   const setField = (field: keyof ProjectFormState, value: string): void => {
     setForm((current) => ({ ...current, [field]: value }));
+    if (field === "workspacePath") setFolderError(undefined);
+  };
+
+  const chooseWorkspace = async (): Promise<void> => {
+    setFolderError(undefined);
+    try {
+      const selected = await selectProjectFolder(form.workspacePath);
+      if (selected) setField("workspacePath", selected);
+    } catch (error) {
+      setFolderError(
+        nativeErrorMessage(error, "Windows could not open the folder picker."),
+      );
+    }
   };
 
   const nameInvalid = submitted && form.name.trim().length < 2;
@@ -76,14 +99,21 @@ export function ProjectFormDialog({
     setSubmitted(true);
     if (form.name.trim().length < 2 || form.projectNumber.trim().length === 0)
       return;
-    await onSubmit({
-      name: form.name.trim(),
-      project_number: form.projectNumber.trim(),
-      client: form.client.trim() || null,
-      consultant: form.consultant.trim() || null,
-      contractor: form.contractor.trim() || null,
-      description: form.description.trim() || null,
-    });
+    try {
+      await onSubmit({
+        name: form.name.trim(),
+        project_number: form.projectNumber.trim(),
+        client: form.client.trim() || null,
+        consultant: form.consultant.trim() || null,
+        contractor: form.contractor.trim() || null,
+        description: form.description.trim() || null,
+        settings: {
+          workspace_path: form.workspacePath.trim() || null,
+        },
+      });
+    } catch {
+      // The parent mutation owns the user-facing error state.
+    }
   };
 
   return (
@@ -112,6 +142,32 @@ export function ProjectFormDialog({
                   onChange={(_, data) => setField("name", data.value)}
                   maxLength={200}
                 />
+              </Field>
+              <Field
+                label="Project folder"
+                hint="ProjectMind scans supported documents in this folder. You can change it later."
+              >
+                <div className="path-picker">
+                  <Input
+                    value={form.workspacePath}
+                    placeholder="Choose the local project document folder"
+                    onChange={(_, data) =>
+                      setField("workspacePath", data.value)
+                    }
+                  />
+                  <Button
+                    type="button"
+                    icon={<FolderOpen20Regular />}
+                    onClick={() => void chooseWorkspace()}
+                  >
+                    Browse
+                  </Button>
+                </div>
+                {folderError ? (
+                  <MessageBar intent="error">
+                    <MessageBarBody>{folderError}</MessageBarBody>
+                  </MessageBar>
+                ) : null}
               </Field>
               <Field
                 label="Project number"

@@ -4,23 +4,26 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "projectmind-backend"
-version = "0.1.4"
+version = "0.2.0"
 description = "Local ProjectMind Engineering AI backend sidecar"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "aiosqlite==0.22.1",
   "alembic==1.18.5",
   "fastapi==0.139.2",
+  "httpx==0.28.1",
+  "openpyxl==3.1.5",
   "platformdirs==4.10.1",
   "pydantic==2.13.4",
   "pydantic-settings==2.14.2",
+  "pypdf==5.9.0",
+  "python-docx==1.2.0",
   "sqlalchemy==2.0.51",
   "uvicorn==0.51.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "httpx==0.28.1",
   "mypy==2.3.0",
   "pyinstaller==6.21.0",
   "pytest==9.1.1",
@@ -59,5 +62,5 @@ plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
 exclude = ["migrations"]
 
 [[tool.mypy.overrides]]
-module = ["alembic.*"]
+module = ["alembic.*", "openpyxl.*"]
 ignore_missing_imports = true

@@ -4,9 +4,9 @@
 
 - The initial deployment is a trusted, single-user Windows workstation. Multi-user authentication and shared-server synchronization require a separate deployment architecture.
 - English is the first interface language; data contracts and future indexing are Unicode-safe for Arabic.
-- `ProjectMind Engineering AI` is the default brand, not a hard-coded product identity. Phase 1 allows the user to change the visible name.
-- The current phase does not call Kimi and stores no external API key.
-- The future Kimi model identifier and endpoint will be verified against the provider's official API before Phase 4 instead of relying permanently on a prompt-time string.
+- `ProjectMind Engineering AI` is the default brand, not a hard-coded product identity. The user can change the visible name.
+- External AI is opt-in. Kimi/OpenAI-compatible credentials are protected for the current Windows user with DPAPI, outside SQLite and logs.
+- Provider model identifiers and request parameters are checked against official provider documentation and isolated in one adapter.
 - An NSIS package is the initial installer. Code signing credentials are a release-management input and are not stored in this repository.
 
 ## Key technical risks
@@ -36,36 +36,43 @@
 
 Exit gate: migrations, backend tests, backend static checks, frontend tests, lint, typecheck, production web build, and Windows sidecar/Tauri build workflow.
 
-### Phase 2 — Document library
+### Phase 2 — Document library (usable baseline in 0.2.0)
 
 - Controlled file repository and SHA-256 duplicate detection.
-- PDF, DOCX, and XLSX extraction; OCR fallback.
-- Metadata confirmation, ingestion jobs, failures, viewer, and revision links.
-- Current/superseded confirmation and synthetic parser tests.
+- PDF, DOCX, XLSX/XLSM, CSV, Markdown, and text extraction.
+- Visible failures, bounded parsing, preview, missing-file detection, and revision links.
+- Current/superseded records and synthetic parser tests.
 
-### Phase 3 — Search and retrieval
+Remaining: background job progress/cancellation, OCR fallback, richer metadata confirmation, and page-coordinate citations.
 
-- FTS5 and local embedding providers.
-- LanceDB implementation behind an interface.
-- Hybrid ranking, metadata filters, parent-child chunks, citations, and conflict candidates.
-- Benchmark corpus and retrieval/citation quality tests.
+### Phase 3 — Search and retrieval (exact-search baseline in 0.2.0)
 
-### Phase 4 — Kimi chat
+- SQLite FTS5 exact content/title search with Unicode tokenization.
+- Current/superseded filtering and file/version/excerpt citations.
+- Controlled evidence selection for chat and reviews.
 
-- Verified Kimi provider adapter and Windows-protected API key.
-- Streaming, token budgets, context assembly, tool calls, structured outputs, retries, and usage accounting.
-- Evidence-only/project-only/all-sources modes and offline degradation.
+Remaining: local embeddings, hybrid ranking, metadata filters, parent-child chunks, conflict candidates, and a measured retrieval benchmark corpus. LanceDB remains an option, not an implemented dependency.
 
-### Phase 5 — Controlled memory and engineering workflows
+### Phase 4 — Kimi chat (usable baseline in 0.2.0)
 
-- Memory approval/versioning and conflict review.
-- Requirements, reviews, comparisons, issues, decisions, calculations, and templates.
-- Material, method-statement, ITP, drawing, and report workflows with evidence per comment.
-- DOCX/Markdown export.
+- Verified Kimi K3/OpenAI-compatible provider adapter and Windows DPAPI-protected key.
+- Configurable timeout, output budget, K3 reasoning effort, context assembly, connection test, and controlled provider errors.
+- Evidence-only, project, and general modes with local-only degradation when evidence is absent.
+- Saved conversations with complete provider assistant messages for valid K3 multi-turn reasoning.
 
-### Phase 6 — Hardening and release
+Remaining: streaming, cancellation, structured outputs, tool calls, retry policy, and usage/cost accounting.
 
-- Backup/restore, encryption option, performance/accessibility testing, signing, upgrade/uninstall tests, user documentation, and release installer.
+### Phase 5 — Engineering workflows (draft-review baseline in 0.2.0)
+
+- Source-linked draft reviews for material submittals, method statements/MSRAs, ITPs, shop drawings, technical reports, and general engineering documents.
+- Saved local review history and reusable instruction prompts.
+
+Remaining: controlled-memory approval/versioning, requirements, comparisons, issues, decisions, calculations, richer templates, and DOCX/Markdown export.
+
+### Phase 6 — Hardening and release (in progress)
+
+- Implemented: automatic/manual local database backups, rotating/sanitized diagnostics, renderer watchdog and recovery, installer build, upgrade-preserving data directory, and automated Windows smoke workflow.
+- Remaining: guided restore, encryption option, performance/accessibility benchmarks, code signing, broad upgrade/uninstall matrices, and final user documentation.
 
 ## Definition of done for every phase
 

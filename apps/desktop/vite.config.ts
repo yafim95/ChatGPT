@@ -17,7 +17,10 @@ export default defineConfig({
     modulePreload: false,
     target: "es2020",
     sourcemap: false,
-    chunkSizeWarningLimit: 700,
+    // The Windows blank-screen recovery design deliberately emits one
+    // self-contained renderer asset; code-splitting would reintroduce
+    // secondary asset requests in the installed WebView.
+    chunkSizeWarningLimit: 900,
   },
   test: {
     environment: "jsdom",

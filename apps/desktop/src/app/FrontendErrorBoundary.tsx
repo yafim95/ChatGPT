@@ -60,10 +60,16 @@ export class FrontendErrorBoundary extends Component<
           <button type="button" onClick={() => window.location.reload()}>
             Reload interface
           </button>
-          <button type="button" onClick={() => void resetRenderer()}>
+          <button
+            type="button"
+            onClick={() => void resetRenderer().catch(() => undefined)}
+          >
             Reset interface cache
           </button>
-          <button type="button" onClick={() => void openDiagnosticsFolder()}>
+          <button
+            type="button"
+            onClick={() => void openDiagnosticsFolder().catch(() => undefined)}
+          >
             Open diagnostics folder
           </button>
         </div>

@@ -15,5 +15,5 @@ async def test_authenticated_health_checks_database(client: AsyncClient) -> None
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["database"] == "ok"
-    assert payload["version"] == "0.1.4"
+    assert payload["version"] == "0.2.0"
     assert payload["environment"] == "test"

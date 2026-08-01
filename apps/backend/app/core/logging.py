@@ -47,3 +47,11 @@ def configure_logging(log_dir: Path, level: str, secrets: tuple[str, ...]) -> No
     handler.setFormatter(JsonFormatter(secrets))
     handler._projectmind_handler = True  # type: ignore[attr-defined]
     root.addHandler(handler)
+
+
+def set_diagnostic_logging_enabled(enabled: bool) -> None:
+    """Enable or silence ProjectMind's rotating backend file handler."""
+    disabled_level = logging.CRITICAL + 1
+    for handler in logging.getLogger().handlers:
+        if getattr(handler, "_projectmind_handler", False):
+            handler.setLevel(logging.NOTSET if enabled else disabled_level)

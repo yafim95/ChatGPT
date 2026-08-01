@@ -1,26 +1,19 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectsPage } from "./ProjectsPage";
 
 const mocks = vi.hoisted(() => ({
   listProjects: vi.fn(),
-  reportFrontendReady: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../api/client", () => ({
-  ApiClientError: class ApiClientError extends Error {},
   api: {
     archiveProject: vi.fn(),
-    createProject: vi.fn(),
     listProjects: mocks.listProjects,
-    updateProject: vi.fn(),
+    restoreProject: vi.fn(),
   },
-}));
-
-vi.mock("../api/bootstrap", () => ({
-  reportFrontendReady: mocks.reportFrontendReady,
 }));
 
 function createWrapper(queryClient: QueryClient) {
@@ -31,7 +24,7 @@ function createWrapper(queryClient: QueryClient) {
   };
 }
 
-describe("ProjectsPage readiness", () => {
+describe("ProjectsPage", () => {
   beforeEach(() => {
     mocks.listProjects.mockReset();
     mocks.listProjects.mockResolvedValue({
@@ -40,29 +33,26 @@ describe("ProjectsPage readiness", () => {
       limit: 100,
       offset: 0,
     });
-    mocks.reportFrontendReady.mockClear();
   });
 
-  it("reports readiness only after settings and the initial project view render", async () => {
+  it("shows a functional empty state and starts project creation", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
+    const onCreate = vi.fn();
     const wrapper = createWrapper(queryClient);
-    const { rerender, unmount } = render(
-      <ProjectsPage settingsReady={false} />,
-      {
-        wrapper,
-      },
+    const { unmount } = render(
+      <ProjectsPage onCreate={onCreate} onEdit={vi.fn()} onOpen={vi.fn()} />,
+      { wrapper },
     );
 
-    expect(await screen.findByText("No projects yet")).toBeInTheDocument();
-    expect(mocks.reportFrontendReady).not.toHaveBeenCalled();
-
-    rerender(<ProjectsPage settingsReady />);
-
-    await waitFor(() => {
-      expect(mocks.reportFrontendReady).toHaveBeenCalledTimes(1);
-    });
+    expect(
+      await screen.findByText("Create your first project workspace"),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Create first project" }),
+    );
+    expect(onCreate).toHaveBeenCalledTimes(1);
     unmount();
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
   });

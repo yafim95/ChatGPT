@@ -21,9 +21,15 @@ class ApplicationSettingsService:
             await session.refresh(settings)
         return settings
 
-    async def get(self, session: AsyncSession) -> ApplicationSettingsRead:
+    async def get(
+        self,
+        session: AsyncSession,
+        *,
+        api_key_configured: bool = False,
+    ) -> ApplicationSettingsRead:
         settings = await self._get_or_create(session)
-        return ApplicationSettingsRead.model_validate(settings)
+        result = ApplicationSettingsRead.model_validate(settings)
+        return result.model_copy(update={"ai_api_key_configured": api_key_configured})
 
     async def update(
         self,
@@ -31,7 +37,12 @@ class ApplicationSettingsService:
         payload: ApplicationSettingsUpdate,
     ) -> ApplicationSettingsRead:
         settings = await self._get_or_create(session)
-        changes = payload.model_dump(exclude_unset=True, exclude_none=True)
+        changes = payload.model_dump(mode="json", exclude_unset=True)
+        changes = {
+            field: value
+            for field, value in changes.items()
+            if value is not None or field == "default_project_root"
+        }
         for field, value in changes.items():
             setattr(settings, field, value)
         record_audit(

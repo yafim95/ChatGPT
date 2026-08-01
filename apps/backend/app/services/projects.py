@@ -6,11 +6,17 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.errors import ConflictError, NotFoundError
 from app.models.project import Project, ProjectSettings
 from app.schemas.common import Page
-from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
+from app.schemas.project import (
+    ProjectCreate,
+    ProjectRead,
+    ProjectSettingsUpdate,
+    ProjectUpdate,
+)
 from app.services.audit import record_audit
 
 
@@ -59,8 +65,13 @@ class ProjectService:
         *,
         limit: int,
         offset: int,
+        status: str,
     ) -> Page[ProjectRead]:
-        filters = (Project.deleted_at.is_(None),)
+        filters: list[ColumnElement[bool]] = []
+        if status == "archived":
+            filters.append(Project.deleted_at.is_not(None))
+        elif status != "all":
+            filters.append(Project.deleted_at.is_(None))
         total = await session.scalar(select(func.count(Project.id)).where(*filters))
         statement = (
             select(Project)
@@ -90,6 +101,11 @@ class ProjectService:
     ) -> ProjectRead:
         project = await self._active_project(session, project_id)
         changes = payload.model_dump(exclude_unset=True)
+        changes = {
+            field: value
+            for field, value in changes.items()
+            if value is not None or field not in {"name", "project_number"}
+        }
         for field, value in changes.items():
             setattr(project, field, value)
         record_audit(
@@ -118,3 +134,49 @@ class ProjectService:
             target_id=project.id,
         )
         await session.commit()
+
+    async def restore(self, session: AsyncSession, project_id: str) -> ProjectRead:
+        project = await session.scalar(
+            select(Project)
+            .options(selectinload(Project.settings))
+            .where(Project.id == project_id, Project.deleted_at.is_not(None))
+        )
+        if project is None:
+            raise NotFoundError("Archived project")
+        project.status = "active"
+        project.deleted_at = None
+        record_audit(
+            session,
+            action="project.restored",
+            target_type="project",
+            target_id=project.id,
+        )
+        await session.commit()
+        restored = await self._active_project(session, project_id)
+        return ProjectRead.model_validate(restored)
+
+    async def update_settings(
+        self,
+        session: AsyncSession,
+        project_id: str,
+        payload: ProjectSettingsUpdate,
+    ) -> ProjectRead:
+        project = await self._active_project(session, project_id)
+        changes = payload.model_dump(exclude_unset=True)
+        changes = {
+            field: value
+            for field, value in changes.items()
+            if value is not None or field == "workspace_path"
+        }
+        for field, value in changes.items():
+            setattr(project.settings, field, value)
+        record_audit(
+            session,
+            action="project.settings_updated",
+            target_type="project",
+            target_id=project.id,
+            details={"fields": sorted(changes)},
+        )
+        await session.commit()
+        updated = await self._active_project(session, project_id)
+        return ProjectRead.model_validate(updated)

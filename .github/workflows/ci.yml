@@ -1,4 +1,4 @@
-name: Phase 1 CI
+name: ProjectMind CI
 
 on:
   push:

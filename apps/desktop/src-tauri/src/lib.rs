@@ -342,6 +342,104 @@ fn open_diagnostics_folder(process: State<'_, BackendProcess>) -> Result<String,
     Ok(directory.to_string_lossy().into_owned())
 }
 
+#[tauri::command]
+async fn select_project_folder(initial_path: Option<String>) -> Result<Option<String>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        tauri::async_runtime::spawn_blocking(move || {
+            use std::os::windows::process::CommandExt;
+
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            let script = r#"
+Add-Type -AssemblyName System.Windows.Forms
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = 'Choose the ProjectMind project folder'
+$dialog.ShowNewFolderButton = $true
+if ($env:PROJECTMIND_INITIAL_FOLDER -and (Test-Path -LiteralPath $env:PROJECTMIND_INITIAL_FOLDER)) {
+  $dialog.SelectedPath = $env:PROJECTMIND_INITIAL_FOLDER
+}
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+  [Console]::Out.Write($dialog.SelectedPath)
+}
+"#;
+            let powershell = std::env::var_os("SystemRoot")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from(r"C:\Windows"))
+                .join("System32")
+                .join("WindowsPowerShell")
+                .join("v1.0")
+                .join("powershell.exe");
+            let output = std::process::Command::new(powershell)
+                .args([
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-STA",
+                    "-Command",
+                    script,
+                ])
+                .env(
+                    "PROJECTMIND_INITIAL_FOLDER",
+                    initial_path.unwrap_or_default(),
+                )
+                .creation_flags(CREATE_NO_WINDOW)
+                .output()
+                .map_err(|error| format!("Could not open the folder chooser: {error}"))?;
+            if !output.status.success() {
+                return Err("The Windows folder chooser could not be opened.".to_owned());
+            }
+            let selected = String::from_utf8_lossy(&output.stdout)
+                .trim_matches(|character: char| {
+                    matches!(character, '\u{feff}' | '\r' | '\n' | ' ')
+                })
+                .to_owned();
+            Ok(if selected.is_empty() {
+                None
+            } else {
+                Some(selected)
+            })
+        })
+        .await
+        .map_err(|error| format!("The folder chooser stopped unexpectedly: {error}"))?
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = initial_path;
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+fn reveal_local_path(path: String) -> Result<(), String> {
+    let selected = PathBuf::from(path);
+    if !selected.exists() {
+        return Err("The selected local path no longer exists.".to_owned());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let mut command = std::process::Command::new("explorer.exe");
+        if selected.is_file() {
+            command.arg(format!("/select,{}", selected.to_string_lossy()));
+        } else {
+            command.arg(&selected);
+        }
+        command
+            .spawn()
+            .map_err(|error| format!("Could not open File Explorer: {error}"))?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = selected;
+        return Err("Opening local paths is available in the Windows application.".to_owned());
+    }
+
+    Ok(())
+}
+
 fn reserve_loopback_port() -> Result<u16, Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(("127.0.0.1", 0))?;
     let port = listener.local_addr()?.port();
@@ -639,7 +737,7 @@ pub fn run() {
                 &log_path,
                 &format!(
                     "desktop launch [version={} launch={renderer_launch_id}] \
-                     frontend=self-contained renderer_profile=webview-v0.1.4",
+                     frontend=self-contained renderer_profile=webview-v0.2.0",
                     env!("CARGO_PKG_VERSION")
                 ),
             );
@@ -690,7 +788,9 @@ pub fn run() {
             report_frontend_ready,
             report_frontend_diagnostic,
             reset_renderer,
-            open_diagnostics_folder
+            open_diagnostics_folder,
+            select_project_folder,
+            reveal_local_path
         ])
         .build(tauri::generate_context!())
         .expect("failed to build ProjectMind desktop application");

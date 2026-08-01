@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.knowledge import Conversation, Document, ReviewRecord
 
 
 class Project(TimestampMixin, Base):
@@ -34,6 +38,21 @@ class Project(TimestampMixin, Base):
         uselist=False,
         lazy="selectin",
     )
+    documents: Mapped[list[Document]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+    conversations: Mapped[list[Conversation]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+    reviews: Mapped[list[ReviewRecord]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
 
 
 class ProjectSettings(Base):
@@ -49,5 +68,8 @@ class ProjectSettings(Base):
     review_codes: Mapped[list[dict[str, str]]] = mapped_column(JSON, nullable=False, default=list)
     document_hierarchy: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     document_precedence: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    workspace_path: Mapped[str | None] = mapped_column(Text)
+    include_subfolders: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    auto_scan_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     project: Mapped[Project] = relationship(back_populates="settings")

@@ -135,6 +135,49 @@ try {
     if (-not $ready) {
         throw "The packaged backend did not become healthy within $TimeoutSeconds seconds."
     }
+
+    $headers = @{ "X-ProjectMind-Session" = $token }
+    $workspace = Join-Path $testRoot "source-documents"
+    New-Item -ItemType Directory -Force -Path $workspace | Out-Null
+    Set-Content `
+        -LiteralPath (Join-Path $workspace "Synthetic Requirement.txt") `
+        -Value "The synthetic smoke requirement mandates a 42 year design life." `
+        -Encoding UTF8
+    $projectPayload = @{
+        name = "Packaged sidecar smoke project"
+        project_number = "PACKAGE-SMOKE-001"
+        settings = @{ workspace_path = $workspace }
+    } | ConvertTo-Json -Depth 4
+    $project = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://127.0.0.1:$port/api/projects" `
+        -Headers $headers `
+        -ContentType "application/json" `
+        -Body $projectPayload `
+        -TimeoutSec 10
+    $scan = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://127.0.0.1:$port/api/projects/$($project.id)/documents/scan" `
+        -Headers $headers `
+        -TimeoutSec 30
+    if ($scan.added -ne 1 -or $scan.failed -ne 0) {
+        throw "Packaged document scan returned an unexpected result: $($scan | ConvertTo-Json -Compress)"
+    }
+    $search = Invoke-RestMethod `
+        -Uri "http://127.0.0.1:$port/api/projects/$($project.id)/documents/search?query=design%20life" `
+        -Headers $headers `
+        -TimeoutSec 10
+    if ($search.total -ne 1 -or $search.results[0].excerpt -notmatch "42 year") {
+        throw "Packaged full-text search did not return the synthetic requirement."
+    }
+    $backup = Invoke-RestMethod `
+        -Method Post `
+        -Uri "http://127.0.0.1:$port/api/maintenance/backup" `
+        -Headers $headers `
+        -TimeoutSec 30
+    if (-not (Test-Path -LiteralPath $backup.path)) {
+        throw "The packaged backend did not create the requested database backup."
+    }
     Write-Host "Packaged backend smoke test passed on port $port."
 }
 catch {
@@ -178,7 +221,7 @@ project = connection.execute(
     "SELECT name FROM projects WHERE project_number = 'SYNTHETIC-001'"
 ).fetchone()
 connection.close()
-assert revision == ("20260718_0001",), revision
+assert revision == ("20260801_0002",), revision
 assert project == ("Interrupted migration project",), project
 '@
     & $pythonPath -c $verificationCode $databasePath

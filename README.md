@@ -2,17 +2,23 @@
 
 ProjectMind is a Windows-first engineering knowledge and document-intelligence application. It is designed to become a traceable, revision-aware project memory for construction teams rather than a general chatbot.
 
-This repository currently contains the **complete Phase 1 foundation**:
+Version 0.2.0 contains a usable local-first product workspace:
 
-- Tauri 2 desktop shell with a React 19 and Fluent UI interface.
+- Persistent Tauri 2/React 19/Fluent UI navigation with Home, Projects, Settings, and project workspaces.
 - Bundled FastAPI sidecar architecture; end users will not need Python.
 - Authenticated localhost communication with a random per-launch session token.
-- SQLite with WAL, foreign keys, Alembic migrations, and soft-deletion.
-- Project creation, editing, archiving, project defaults, and application settings.
-- Backend health monitoring, consistent API errors, technical logs, and audit events.
+- Project creation, editing, archiving, local folder selection, and per-project scan controls.
+- Local PDF, DOCX, XLSX/XLSM, CSV, Markdown, and text extraction with SHA-256 duplicate and revision tracking.
+- SQLite FTS5 search, document preview, missing-file detection, and current/superseded controls.
+- Evidence-only, project, and general chat modes through Kimi or a configurable OpenAI-compatible provider.
+- Source-linked draft engineering reviews for submittals, MSRAs, ITPs, shop drawings, and reports.
+- Modular controls for appearance, retrieval, privacy, protected provider credentials, backups, diagnostics, and interface recovery.
+- SQLite with WAL, foreign keys, Alembic migrations, soft-deletion, audit events, and automatic/manual backups.
 - Automated backend/frontend checks and a Windows NSIS installer workflow.
 
-The document library, retrieval, Kimi integration, controlled memory, and engineering review workflows are deliberately absent from the Phase 1 interface. They are delivered in Phases 2–6; there are no fake buttons.
+Source documents stay in their selected folders. Extracted text, search indexes, project records, conversations, and reviews are stored locally. External AI is disabled by default; when enabled, ProjectMind sends the prompt and selected retrieved excerpts rather than uploading the document library.
+
+OCR, semantic/vector retrieval, structured requirement memory, export templates, signed release distribution, and enterprise encryption remain roadmap work. Image-only PDFs are reported as needing OCR instead of being presented as successfully searchable.
 
 ## Architecture at a glance
 
@@ -21,11 +27,11 @@ flowchart LR
     UI["Tauri + React desktop"] -->|"localhost + launch token"| API["FastAPI sidecar"]
     API --> DB["SQLite + Alembic"]
     API --> FS["Local project files"]
-    API -. "Phase 3" .-> IDX["FTS5 + LanceDB"]
-    API -. "Phase 4: selected evidence only" .-> KIMI["Kimi provider"]
+    API --> IDX["SQLite FTS5"]
+    API -. "opt-in selected evidence" .-> KIMI["Kimi / compatible provider"]
 ```
 
-See [Architecture](docs/ARCHITECTURE.md), [Implementation plan](docs/IMPLEMENTATION_PLAN.md), and [Phase 1 verification](docs/PHASE_1.md) for the complete decisions and scope.
+See [Architecture](docs/ARCHITECTURE.md), [Implementation plan](docs/IMPLEMENTATION_PLAN.md), and the historical [Phase 1 verification](docs/PHASE_1.md) for decisions, current limits, and roadmap.
 
 ## Developer quick start on Windows
 
@@ -98,8 +104,8 @@ Use `X-ProjectMind-Session: local-development-token` for `/api/*` requests. `/he
 
 ## Product safety
 
-ProjectMind assists qualified professionals; it does not replace engineering judgment, contractual review, or authority approval. Future AI-generated conclusions that could affect safety, construction, cost, design, or compliance must remain evidence-linked and subject to qualified review.
+ProjectMind assists qualified professionals; it does not replace engineering judgment, contractual review, or authority approval. AI-generated conclusions that could affect safety, construction, cost, design, or compliance must remain evidence-linked and subject to qualified review.
 
 ## Status
 
-Version `0.1.4` — Phase 1 self-contained Windows renderer reliability update. See [CHANGELOG.md](CHANGELOG.md).
+Version `0.2.0` — functional project workspace, local document intelligence, controlled AI, engineering reviews, and modular application settings. See [CHANGELOG.md](CHANGELOG.md).
