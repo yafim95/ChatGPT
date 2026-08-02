@@ -1,0 +1,21 @@
+[package]
+name = "projectmind-desktop"
+version = "0.3.0"
+description = "ProjectMind Engineering AI Windows desktop shell"
+authors = ["ProjectMind"]
+edition = "2024"
+rust-version = "1.85"
+
+[lib]
+name = "projectmind_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+base64 = "=0.22.1"
+getrandom = "=0.3.4"
+serde = { version = "=1.0.228", features = ["derive"] }
+tauri = { version = "=2.11.5", features = [] }
+tauri-plugin-shell = "=2.3.5"

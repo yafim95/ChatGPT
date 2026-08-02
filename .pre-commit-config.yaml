@@ -1,0 +1,21 @@
+repos:
+  - repo: local
+    hooks:
+      - id: backend-ruff
+        name: Backend Ruff
+        entry: apps/backend/.venv/Scripts/ruff.exe check apps/backend
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: frontend-lint
+        name: Frontend ESLint
+        entry: npm run lint
+        language: system
+        files: ^apps/desktop/
+        pass_filenames: false
+      - id: frontend-format
+        name: Frontend Prettier
+        entry: npm run format:check
+        language: system
+        files: ^apps/desktop/
+        pass_filenames: false

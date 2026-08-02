@@ -1,0 +1,65 @@
+from __future__ import annotations
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.errors import ConfigurationError
+from app.models.settings import ApplicationSettings
+from app.schemas.settings import ApplicationSettingsRead, ApplicationSettingsUpdate
+from app.services.audit import record_audit
+
+
+class ApplicationSettingsService:
+    @staticmethod
+    async def _get_or_create(session: AsyncSession) -> ApplicationSettings:
+        settings = await session.scalar(
+            select(ApplicationSettings).where(ApplicationSettings.id == 1)
+        )
+        if settings is None:
+            settings = ApplicationSettings(id=1)
+            session.add(settings)
+            await session.commit()
+            await session.refresh(settings)
+        return settings
+
+    async def get(
+        self,
+        session: AsyncSession,
+        *,
+        api_key_configured: bool = False,
+    ) -> ApplicationSettingsRead:
+        settings = await self._get_or_create(session)
+        result = ApplicationSettingsRead.model_validate(settings)
+        return result.model_copy(update={"ai_api_key_configured": api_key_configured})
+
+    async def update(
+        self,
+        session: AsyncSession,
+        payload: ApplicationSettingsUpdate,
+    ) -> ApplicationSettingsRead:
+        settings = await self._get_or_create(session)
+        changes = payload.model_dump(mode="json", exclude_unset=True)
+        changes = {
+            field: value
+            for field, value in changes.items()
+            if value is not None or field == "default_project_root"
+        }
+        chunk_size = int(changes.get("rag_chunk_size", settings.rag_chunk_size))
+        chunk_overlap = int(changes.get("rag_chunk_overlap", settings.rag_chunk_overlap))
+        if chunk_overlap > chunk_size // 2:
+            raise ConfigurationError(
+                "Passage overlap cannot exceed half of the passage size.",
+                code="invalid_retrieval_settings",
+            )
+        for field, value in changes.items():
+            setattr(settings, field, value)
+        record_audit(
+            session,
+            action="application_settings.updated",
+            target_type="application_settings",
+            target_id="1",
+            details={"fields": sorted(changes)},
+        )
+        await session.commit()
+        await session.refresh(settings)
+        return ApplicationSettingsRead.model_validate(settings)

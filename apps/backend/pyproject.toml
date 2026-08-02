@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools==82.0.1", "wheel==0.46.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "projectmind-backend"
+version = "0.3.0"
+description = "Local ProjectMind Engineering AI backend sidecar"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "aiosqlite==0.22.1",
+  "alembic==1.18.5",
+  "fastapi==0.139.2",
+  "httpx==0.28.1",
+  "openpyxl==3.1.5",
+  "platformdirs==4.10.1",
+  "pydantic==2.13.4",
+  "pydantic-settings==2.14.2",
+  "pypdf==5.9.0",
+  "python-docx==1.2.0",
+  "sqlalchemy==2.0.51",
+  "uvicorn==0.51.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy==2.3.0",
+  "pyinstaller==6.21.0",
+  "pytest==9.1.1",
+  "pytest-asyncio==1.4.0",
+  "ruff==0.15.22",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers --strict-config"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "S", "RUF"]
+ignore = [
+  "S101", # assert is appropriate in tests
+  "S104", # loopback binding is validated at runtime
+]
+
+[tool.ruff.lint.per-file-ignores]
+"migrations/versions/*.py" = ["E501"]
+"tests/*.py" = ["S106"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+exclude = ["migrations"]
+
+[[tool.mypy.overrides]]
+module = ["alembic.*", "openpyxl.*"]
+ignore_missing_imports = true
