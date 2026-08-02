@@ -15,7 +15,7 @@ describe("API client", () => {
       new Response(
         JSON.stringify({
           status: "ok",
-          version: "0.2.0",
+          version: "0.3.0",
           database: "ok",
           environment: "test",
           timestamp: "2026-07-18T00:00:00Z",
@@ -56,6 +56,43 @@ describe("API client", () => {
       code: "conflict",
       status: 409,
       traceId: "trace-1",
+    });
+  });
+
+  it("sends explicit review files and project-memory preference with chat", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          conversation_id: "conversation-1",
+          message: "Evidence-linked answer",
+          sources: [],
+          model: "kimi-k3",
+          local_only: false,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    await api.askProject(
+      "project-1",
+      "Review this file",
+      "evidence",
+      undefined,
+      {
+        documentIds: ["document-1"],
+        includeCoreMemory: true,
+      },
+    );
+
+    const request = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(request[0]).toBe(
+      "http://127.0.0.1:9999/api/projects/project-1/chat",
+    );
+    expect(JSON.parse(request[1].body as string)).toMatchObject({
+      message: "Review this file",
+      mode: "evidence",
+      document_ids: ["document-1"],
+      include_core_memory: true,
     });
   });
 });

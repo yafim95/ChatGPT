@@ -6,20 +6,29 @@ import type {
   ChatMode,
   ChatResponse,
   Conversation,
+  CrsCreatePayload,
+  CrsItemPayload,
+  CrsSheet,
   DashboardSummary,
+  DirectoryListing,
   DocumentPage,
   DocumentPreview,
+  DocumentRelationships,
+  DocumentWorkflowUpdate,
   HealthResponse,
   MaintenanceInfo,
   Project,
+  ProjectDocument,
   ProjectPage,
   ProjectPayload,
   ProjectSettings,
   ProjectSummary,
   ProviderStatus,
   ProviderTestResult,
+  ReindexSummary,
   ReviewPayload,
   ReviewRecord,
+  ReviewUpdatePayload,
   ScanSummary,
   SearchResponse,
 } from "../types/api";
@@ -72,6 +81,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+async function requestText(path: string): Promise<string> {
+  const bootstrap = await getBackendBootstrap();
+  const response = await fetch(`${bootstrap.baseUrl}${path}`, {
+    headers: {
+      "X-ProjectMind-Session": bootstrap.sessionToken,
+      Accept: "text/csv",
+    },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new ApiClientError(
+      `Local service request failed (${String(response.status)}).`,
+      response.status,
+    );
+  }
+  return response.text();
 }
 
 function queryString(
@@ -130,6 +157,18 @@ export const api = {
     ),
   scanDocuments: (id: string): Promise<ScanSummary> =>
     request(`/api/projects/${id}/documents/scan`, { method: "POST" }),
+  rebuildPassages: (id: string): Promise<ReindexSummary> =>
+    request(`/api/projects/${id}/documents/reindex`, { method: "POST" }),
+  browseFiles: (
+    id: string,
+    options: { path?: string; query?: string } = {},
+  ): Promise<DirectoryListing> =>
+    request(
+      `/api/projects/${id}/files${queryString({
+        path: options.path,
+        query: options.query,
+      })}`,
+    ),
   previewDocument: (
     projectId: string,
     documentId: string,
@@ -139,6 +178,20 @@ export const api = {
     request(`/api/projects/${projectId}/documents/${documentId}`, {
       method: "DELETE",
     }),
+  updateDocumentWorkflow: (
+    projectId: string,
+    documentId: string,
+    payload: DocumentWorkflowUpdate,
+  ): Promise<ProjectDocument> =>
+    request(`/api/projects/${projectId}/documents/${documentId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  documentRelationships: (
+    projectId: string,
+    documentId: string,
+  ): Promise<DocumentRelationships> =>
+    request(`/api/projects/${projectId}/documents/${documentId}/relationships`),
   searchDocuments: (
     projectId: string,
     query: string,
@@ -156,10 +209,22 @@ export const api = {
     message: string,
     mode: ChatMode,
     conversationId?: string,
+    options: {
+      documentIds?: string[];
+      includeCoreMemory?: boolean;
+      conversationTitle?: string;
+    } = {},
   ): Promise<ChatResponse> =>
     request(`/api/projects/${projectId}/chat`, {
       method: "POST",
-      body: JSON.stringify({ message, mode, conversation_id: conversationId }),
+      body: JSON.stringify({
+        message,
+        mode,
+        conversation_id: conversationId,
+        document_ids: options.documentIds ?? [],
+        include_core_memory: options.includeCoreMemory ?? true,
+        conversation_title: options.conversationTitle,
+      }),
     }),
   listConversations: (projectId: string): Promise<Conversation[]> =>
     request(`/api/projects/${projectId}/conversations`),
@@ -178,6 +243,71 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  updateReview: (
+    projectId: string,
+    reviewId: string,
+    payload: ReviewUpdatePayload,
+  ): Promise<ReviewRecord> =>
+    request(`/api/projects/${projectId}/reviews/${reviewId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  listCrs: (projectId: string, documentId?: string): Promise<CrsSheet[]> =>
+    request(
+      `/api/projects/${projectId}/crs${queryString({
+        document_id: documentId,
+      })}`,
+    ),
+  getCrs: (projectId: string, sheetId: string): Promise<CrsSheet> =>
+    request(`/api/projects/${projectId}/crs/${sheetId}`),
+  createCrs: (
+    projectId: string,
+    payload: CrsCreatePayload,
+  ): Promise<CrsSheet> =>
+    request(`/api/projects/${projectId}/crs`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateCrs: (
+    projectId: string,
+    sheetId: string,
+    payload: Partial<
+      Pick<CrsSheet, "title" | "reference_number" | "revision" | "status">
+    >,
+  ): Promise<CrsSheet> =>
+    request(`/api/projects/${projectId}/crs/${sheetId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  addCrsItem: (
+    projectId: string,
+    sheetId: string,
+    payload: CrsItemPayload,
+  ): Promise<CrsSheet> =>
+    request(`/api/projects/${projectId}/crs/${sheetId}/items`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateCrsItem: (
+    projectId: string,
+    sheetId: string,
+    itemId: string,
+    payload: Partial<CrsItemPayload>,
+  ): Promise<CrsSheet> =>
+    request(`/api/projects/${projectId}/crs/${sheetId}/items/${itemId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteCrsItem: (
+    projectId: string,
+    sheetId: string,
+    itemId: string,
+  ): Promise<void> =>
+    request(`/api/projects/${projectId}/crs/${sheetId}/items/${itemId}`, {
+      method: "DELETE",
+    }),
+  exportCrs: (projectId: string, sheetId: string): Promise<string> =>
+    requestText(`/api/projects/${projectId}/crs/${sheetId}/export`),
   getSettings: (): Promise<ApplicationSettings> => request("/api/settings"),
   updateSettings: (
     payload: Partial<ApplicationSettings>,

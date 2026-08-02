@@ -22,7 +22,7 @@ class ProviderClient:
             "Authorization": f"Bearer {api_key}",
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "User-Agent": "ProjectMind-Engineering-AI/0.2.0",
+            "User-Agent": "ProjectMind-Engineering-AI/0.3.0",
         }
 
     async def test_connection(

@@ -79,7 +79,7 @@ $smokeLogDirectory = if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
 else {
     Join-Path $env:RUNNER_TEMP "projectmind-installed-smoke-logs"
 }
-$expectedVersion = "0.2.0"
+$expectedVersion = "0.3.0"
 $baselineLineCount = if (Test-Path $desktopLog) {
     @(Get-Content $desktopLog).Count
 }

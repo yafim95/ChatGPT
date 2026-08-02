@@ -5,7 +5,7 @@ import type { HealthResponse, Project } from "../types/api";
 
 const health: HealthResponse = {
   status: "ok",
-  version: "0.2.0",
+  version: "0.3.0",
   database: "ok",
   environment: "test",
   timestamp: "2026-08-01T00:00:00Z",
@@ -32,6 +32,10 @@ const project: Project = {
     workspace_path: "C:\\Projects\\Navigation",
     include_subfolders: true,
     auto_scan_enabled: false,
+    excluded_patterns: [],
+    ai_project_instructions: null,
+    auto_create_crs: true,
+    default_review_due_days: 14,
   },
 };
 
@@ -59,13 +63,24 @@ describe("AppShell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Home" }));
     fireEvent.click(screen.getByRole("button", { name: "Projects" }));
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
-    fireEvent.click(screen.getByRole("button", { name: "Documents" }));
-    fireEvent.click(screen.getByRole("button", { name: "Ask Project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Project files" }));
+    fireEvent.click(screen.getByRole("button", { name: "AI workspace" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reviews & CRS" }));
+    fireEvent.click(screen.getByRole("button", { name: "Project memory" }));
+    fireEvent.click(screen.getByRole("button", { name: "How to use" }));
+    fireEvent.click(screen.getByRole("button", { name: "Project controls" }));
 
     expect(onNavigate).toHaveBeenNthCalledWith(1, "home");
     expect(onNavigate).toHaveBeenNthCalledWith(2, "projects");
     expect(onNavigate).toHaveBeenNthCalledWith(3, "settings");
-    expect(onProjectSectionChange).toHaveBeenNthCalledWith(1, "documents");
-    expect(onProjectSectionChange).toHaveBeenNthCalledWith(2, "ask");
+    expect(onProjectSectionChange).toHaveBeenNthCalledWith(1, "files");
+    expect(onProjectSectionChange).toHaveBeenNthCalledWith(2, "ai");
+    expect(onProjectSectionChange).toHaveBeenNthCalledWith(3, "reviews");
+    expect(onProjectSectionChange).toHaveBeenNthCalledWith(4, "memory");
+    expect(onProjectSectionChange).toHaveBeenNthCalledWith(5, "guide");
+    expect(onProjectSectionChange).toHaveBeenNthCalledWith(
+      6,
+      "project-settings",
+    );
   });
 });

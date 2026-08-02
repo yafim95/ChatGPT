@@ -9,10 +9,10 @@ from app.schemas.common import ApiModel
 DEFAULT_DISCIPLINES = ["Civil", "Structural", "Architectural", "MEP"]
 DEFAULT_REVIEW_CODES = [
     {"code": "1", "label": "Approved"},
-    {"code": "2", "label": "Approved with comments"},
-    {"code": "3", "label": "Revise and resubmit"},
-    {"code": "4", "label": "Rejected"},
+    {"code": "2", "label": "Revise and resubmit — work may proceed"},
+    {"code": "3", "label": "Revise and resubmit — work may not proceed"},
 ]
+DEFAULT_EXCLUDED_PATTERNS = [".git", ".projectmind", "node_modules", "~$*"]
 DEFAULT_DOCUMENT_HIERARCHY = [
     "Contract",
     "Employer Requirements",
@@ -60,6 +60,13 @@ class ProjectSettingsCreate(ApiModel):
     workspace_path: str | None = Field(default=None, max_length=2000)
     include_subfolders: bool = True
     auto_scan_enabled: bool = True
+    excluded_patterns: list[str] = Field(
+        default_factory=lambda: list(DEFAULT_EXCLUDED_PATTERNS),
+        max_length=100,
+    )
+    ai_project_instructions: str | None = Field(default=None, max_length=12000)
+    auto_create_crs: bool = True
+    default_review_due_days: int = Field(default=14, ge=1, le=365)
 
     @field_validator("workspace_path", mode="before")
     @classmethod
@@ -69,7 +76,12 @@ class ProjectSettingsCreate(ApiModel):
         stripped = value.strip()
         return stripped or None
 
-    @field_validator("disciplines", "document_hierarchy", "document_precedence")
+    @field_validator(
+        "disciplines",
+        "document_hierarchy",
+        "document_precedence",
+        "excluded_patterns",
+    )
     @classmethod
     def _clean_string_lists(cls, value: list[str]) -> list[str]:
         cleaned = [item.strip() for item in value if item.strip()]
@@ -96,6 +108,10 @@ class ProjectSettingsUpdate(ApiModel):
     workspace_path: str | None = Field(default=None, max_length=2000)
     include_subfolders: bool | None = None
     auto_scan_enabled: bool | None = None
+    excluded_patterns: list[str] | None = Field(default=None, max_length=100)
+    ai_project_instructions: str | None = Field(default=None, max_length=12000)
+    auto_create_crs: bool | None = None
+    default_review_due_days: int | None = Field(default=None, ge=1, le=365)
 
     @field_validator("workspace_path", mode="before")
     @classmethod
@@ -105,7 +121,12 @@ class ProjectSettingsUpdate(ApiModel):
         stripped = value.strip()
         return stripped or None
 
-    @field_validator("disciplines", "document_hierarchy", "document_precedence")
+    @field_validator(
+        "disciplines",
+        "document_hierarchy",
+        "document_precedence",
+        "excluded_patterns",
+    )
     @classmethod
     def _clean_string_lists(cls, value: list[str] | None) -> list[str] | None:
         if value is None:
@@ -178,6 +199,10 @@ class ProjectSettingsRead(ApiModel):
     workspace_path: str | None
     include_subfolders: bool
     auto_scan_enabled: bool
+    excluded_patterns: list[str]
+    ai_project_instructions: str | None
+    auto_create_crs: bool
+    default_review_due_days: int
 
 
 class ProjectRead(ApiModel):

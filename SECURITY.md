@@ -2,7 +2,7 @@
 
 ## Supported version
 
-The active development line is `0.2.x`. This repository is pre-release software and must not be used as the sole control for safety-critical or contractual decisions.
+The active development line is `0.3.x`. This repository is pre-release software and must not be used as the sole control for safety-critical or contractual decisions.
 
 ## Reporting a vulnerability
 

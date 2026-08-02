@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import ConfigurationError
 from app.models.settings import ApplicationSettings
 from app.schemas.settings import ApplicationSettingsRead, ApplicationSettingsUpdate
 from app.services.audit import record_audit
@@ -43,6 +44,13 @@ class ApplicationSettingsService:
             for field, value in changes.items()
             if value is not None or field == "default_project_root"
         }
+        chunk_size = int(changes.get("rag_chunk_size", settings.rag_chunk_size))
+        chunk_overlap = int(changes.get("rag_chunk_overlap", settings.rag_chunk_overlap))
+        if chunk_overlap > chunk_size // 2:
+            raise ConfigurationError(
+                "Passage overlap cannot exceed half of the passage size.",
+                code="invalid_retrieval_settings",
+            )
         for field, value in changes.items():
             setattr(settings, field, value)
         record_audit(

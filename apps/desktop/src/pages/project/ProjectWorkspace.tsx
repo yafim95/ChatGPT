@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { Badge, Button, Text, Title2 } from "@fluentui/react-components";
 import {
   ArrowLeft20Regular,
   Folder20Regular,
   Settings20Regular,
 } from "@fluentui/react-icons";
-import type { Project, ProjectSummary } from "../../types/api";
+import type { Project, ProjectDocument, ProjectSummary } from "../../types/api";
 import type { ProjectSection } from "../../components/AppShell";
-import { AskSection } from "./sections/AskSection";
-import { DocumentsSection } from "./sections/DocumentsSection";
+import { AIWorkspaceSection } from "./sections/AIWorkspaceSection";
+import { FilesSection } from "./sections/FilesSection";
+import { GuideSection } from "./sections/GuideSection";
+import { MemorySection } from "./sections/MemorySection";
 import { OverviewSection } from "./sections/OverviewSection";
 import { ProjectSettingsSection } from "./sections/ProjectSettingsSection";
 import { ReviewsSection } from "./sections/ReviewsSection";
@@ -21,14 +24,17 @@ interface ProjectWorkspaceProps {
   onSectionChange: (section: ProjectSection) => void;
   onEditProject: (project: Project) => void;
   onOpenGlobalSettings: () => void;
+  autoIncludeCoreMemory: boolean;
 }
 
 const sectionLabels: Record<ProjectSection, string> = {
-  overview: "Overview",
-  documents: "Documents",
-  ask: "Ask Project",
-  reviews: "Engineering Reviews",
-  "project-settings": "Project Settings",
+  overview: "Command center",
+  files: "Project files",
+  ai: "AI workspace",
+  reviews: "Reviews & CRS",
+  memory: "Project memory",
+  guide: "Workflow guide",
+  "project-settings": "Project controls",
 };
 
 export function ProjectWorkspace({
@@ -40,24 +46,47 @@ export function ProjectWorkspace({
   onSectionChange,
   onEditProject,
   onOpenGlobalSettings,
+  autoIncludeCoreMemory,
 }: ProjectWorkspaceProps): React.JSX.Element {
+  const [contextDocuments, setContextDocuments] = useState<ProjectDocument[]>(
+    [],
+  );
+  const [reviewDocument, setReviewDocument] = useState<ProjectDocument>();
+  const [conversationId, setConversationId] = useState<string>();
+
+  const addContextDocument = (document: ProjectDocument): void => {
+    setContextDocuments((current) =>
+      current.some((item) => item.id === document.id)
+        ? current
+        : [...current, document].slice(-20),
+    );
+  };
+  const discussDocument = (document: ProjectDocument): void => {
+    addContextDocument(document);
+    onSectionChange("ai");
+  };
+  const reviewSelectedDocument = (document: ProjectDocument): void => {
+    setReviewDocument(document);
+    onSectionChange("reviews");
+  };
+
   return (
-    <section className="workspace-page">
-      <header className="workspace-header">
-        <div className="workspace-header__topline">
+    <section className="workspace-page workspace-page-v3">
+      <header className="project-hero glass-surface">
+        <div className="project-hero__navigation">
           <Button
             appearance="subtle"
             icon={<ArrowLeft20Regular />}
             onClick={onBack}
           >
-            All projects
+            Projects
           </Button>
-          <span className="breadcrumb-separator">/</span>
-          <Text className="muted-text">{sectionLabels[section]}</Text>
+          <span>/</span>
+          <Text>{sectionLabels[section]}</Text>
         </div>
-        <div className="workspace-header__main">
-          <div className="workspace-title-block">
-            <div className="workspace-avatar">
+        <div className="project-hero__main">
+          <div className="project-hero__identity">
+            <div className="workspace-avatar workspace-avatar-v3">
               {project.name.slice(0, 1).toUpperCase()}
             </div>
             <div>
@@ -80,33 +109,79 @@ export function ProjectWorkspace({
               </div>
             </div>
           </div>
+          <div className="project-hero__metrics">
+            <span>
+              <strong>{summary?.current_document_count ?? 0}</strong>
+              <small>documents</small>
+            </span>
+            <span>
+              <strong>{summary?.open_review_count ?? 0}</strong>
+              <small>open reviews</small>
+            </span>
+            <span>
+              <strong>{summary?.core_memory_count ?? 0}</strong>
+              <small>memory files</small>
+            </span>
+          </div>
           <Button
             icon={<Settings20Regular />}
-            onClick={() => onEditProject(project)}
+            onClick={() => onSectionChange("project-settings")}
           >
-            Edit project
+            Controls
           </Button>
         </div>
       </header>
 
-      <div className="workspace-content">
+      <div className="workspace-content workspace-content-v3">
         {section === "overview" ? (
           <OverviewSection
             project={project}
             summary={summary}
             summaryError={summaryError}
             onNavigate={onSectionChange}
+            onOpenConversation={(id) => {
+              setConversationId(id);
+              onSectionChange("ai");
+            }}
             onEditProject={() => onEditProject(project)}
           />
-        ) : section === "documents" ? (
-          <DocumentsSection project={project} />
-        ) : section === "ask" ? (
-          <AskSection project={project} onOpenSettings={onOpenGlobalSettings} />
+        ) : section === "files" ? (
+          <FilesSection
+            project={project}
+            onDiscuss={discussDocument}
+            onReview={reviewSelectedDocument}
+            onOpenChat={(id) => {
+              setConversationId(id);
+              onSectionChange("ai");
+            }}
+          />
+        ) : section === "ai" ? (
+          <AIWorkspaceSection
+            project={project}
+            contextDocuments={contextDocuments}
+            onContextDocumentsChange={setContextDocuments}
+            onConversationChange={setConversationId}
+            onOpenSettings={onOpenGlobalSettings}
+            defaultIncludeCoreMemory={autoIncludeCoreMemory}
+            initialConversationId={conversationId}
+          />
         ) : section === "reviews" ? (
           <ReviewsSection
             project={project}
+            initialDocument={reviewDocument}
             onOpenSettings={onOpenGlobalSettings}
+            onDiscuss={(document) => {
+              addContextDocument(document);
+              onSectionChange("ai");
+            }}
           />
+        ) : section === "memory" ? (
+          <MemorySection
+            project={project}
+            onOpenFiles={() => onSectionChange("files")}
+          />
+        ) : section === "guide" ? (
+          <GuideSection project={project} onNavigate={onSectionChange} />
         ) : (
           <ProjectSettingsSection
             key={project.updated_at}

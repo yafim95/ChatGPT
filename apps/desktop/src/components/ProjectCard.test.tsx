@@ -24,6 +24,10 @@ const project: Project = {
     workspace_path: "C:\\Projects\\Synthetic",
     include_subfolders: true,
     auto_scan_enabled: false,
+    excluded_patterns: [],
+    ai_project_instructions: null,
+    auto_create_crs: true,
+    default_review_due_days: 14,
   },
 };
 

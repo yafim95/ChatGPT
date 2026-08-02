@@ -166,7 +166,7 @@ class ProjectService:
         changes = {
             field: value
             for field, value in changes.items()
-            if value is not None or field == "workspace_path"
+            if value is not None or field in {"workspace_path", "ai_project_instructions"}
         }
         for field, value in changes.items():
             setattr(project.settings, field, value)

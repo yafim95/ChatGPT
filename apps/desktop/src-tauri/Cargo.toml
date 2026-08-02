@@ -1,6 +1,6 @@
 [package]
 name = "projectmind-desktop"
-version = "0.2.0"
+version = "0.3.0"
 description = "ProjectMind Engineering AI Windows desktop shell"
 authors = ["ProjectMind"]
 edition = "2024"

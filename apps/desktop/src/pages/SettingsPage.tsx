@@ -41,7 +41,13 @@ import {
 import type { ApplicationSettings } from "../types/api";
 
 export type SettingsSection =
-  "general" | "ai" | "retrieval" | "privacy" | "backups" | "advanced";
+  | "general"
+  | "ai"
+  | "retrieval"
+  | "documents"
+  | "privacy"
+  | "backups"
+  | "advanced";
 
 const sectionItems: Array<{
   id: SettingsSection;
@@ -66,6 +72,12 @@ const sectionItems: Array<{
     label: "Retrieval",
     description: "Search behavior",
     icon: <Search24Regular />,
+  },
+  {
+    id: "documents",
+    label: "Documents",
+    description: "Browsing and indexing",
+    icon: <FolderOpen20Regular />,
   },
   {
     id: "privacy",
@@ -331,6 +343,46 @@ function SettingsForm({
                 </Field>
               </div>
               <div className="two-column-fields">
+                <Field label="Visual style">
+                  <Dropdown
+                    value={
+                      form.visual_style === "glass" ? "Glass + clay" : "Solid"
+                    }
+                    selectedOptions={[form.visual_style]}
+                    onOptionSelect={(_, data) =>
+                      data.optionValue &&
+                      set(
+                        "visual_style",
+                        data.optionValue as ApplicationSettings["visual_style"],
+                      )
+                    }
+                  >
+                    <Option value="glass">Glass + clay</Option>
+                    <Option value="solid">Solid</Option>
+                  </Dropdown>
+                </Field>
+                <Field label="Interface density">
+                  <Dropdown
+                    value={
+                      form.interface_density === "compact"
+                        ? "Compact"
+                        : "Comfortable"
+                    }
+                    selectedOptions={[form.interface_density]}
+                    onOptionSelect={(_, data) =>
+                      data.optionValue &&
+                      set(
+                        "interface_density",
+                        data.optionValue as ApplicationSettings["interface_density"],
+                      )
+                    }
+                  >
+                    <Option value="comfortable">Comfortable</Option>
+                    <Option value="compact">Compact</Option>
+                  </Dropdown>
+                </Field>
+              </div>
+              <div className="two-column-fields">
                 <Field label="Start page">
                   <Dropdown
                     value={
@@ -367,6 +419,18 @@ function SettingsForm({
                   />
                 </div>
               </div>
+              <div className="setting-switch-row">
+                <div>
+                  <Text weight="semibold">Reduce motion</Text>
+                  <Text size={200}>
+                    Disable decorative movement and smooth scrolling effects.
+                  </Text>
+                </div>
+                <Switch
+                  checked={form.reduce_motion}
+                  onChange={(_, data) => set("reduce_motion", data.checked)}
+                />
+              </div>
             </Card>
             <div className="settings-save-row">
               <Button
@@ -380,6 +444,9 @@ function SettingsForm({
                     locale: form.locale,
                     start_view: form.start_view,
                     compact_navigation: form.compact_navigation,
+                    visual_style: form.visual_style,
+                    interface_density: form.interface_density,
+                    reduce_motion: form.reduce_motion,
                   })
                 }
               >
@@ -652,6 +719,111 @@ function SettingsForm({
                   }
                 />
               </Field>
+              <div className="two-column-fields">
+                <Field
+                  label="Passage size (characters)"
+                  hint="Larger passages provide more continuity; smaller passages improve precision."
+                >
+                  <Input
+                    type="number"
+                    min={600}
+                    max={6000}
+                    value={String(form.rag_chunk_size)}
+                    onChange={(_, data) =>
+                      set("rag_chunk_size", numeric(data.value, 1800))
+                    }
+                  />
+                </Field>
+                <Field
+                  label="Passage overlap"
+                  hint="Shared text between adjacent passages."
+                >
+                  <Input
+                    type="number"
+                    min={0}
+                    max={1200}
+                    value={String(form.rag_chunk_overlap)}
+                    onChange={(_, data) =>
+                      set("rag_chunk_overlap", numeric(data.value, 240))
+                    }
+                  />
+                </Field>
+              </div>
+              <div className="two-column-fields">
+                <Field label="Project-memory passages">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={String(form.core_memory_result_limit)}
+                    onChange={(_, data) =>
+                      set("core_memory_result_limit", numeric(data.value, 6))
+                    }
+                  />
+                </Field>
+                <Field label="Selected-file passages">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={40}
+                    value={String(form.selected_document_result_limit)}
+                    onChange={(_, data) =>
+                      set(
+                        "selected_document_result_limit",
+                        numeric(data.value, 8),
+                      )
+                    }
+                  />
+                </Field>
+              </div>
+              <div className="two-column-fields">
+                <Field
+                  label="Maximum evidence characters"
+                  hint="Hard ceiling on retrieved document text sent in one request."
+                >
+                  <Input
+                    type="number"
+                    min={12000}
+                    max={800000}
+                    step={1000}
+                    value={String(form.max_context_characters)}
+                    onChange={(_, data) =>
+                      set("max_context_characters", numeric(data.value, 90000))
+                    }
+                  />
+                </Field>
+                <Field
+                  label="Recent chat messages"
+                  hint="Older messages remain saved but are not resent automatically."
+                >
+                  <Input
+                    type="number"
+                    min={2}
+                    max={60}
+                    value={String(form.chat_history_message_limit)}
+                    onChange={(_, data) =>
+                      set("chat_history_message_limit", numeric(data.value, 16))
+                    }
+                  />
+                </Field>
+              </div>
+              <div className="setting-switch-row">
+                <div>
+                  <Text weight="semibold">
+                    Automatically include project memory
+                  </Text>
+                  <Text size={200}>
+                    Retrieve relevant passages from permanent contract and
+                    control documents.
+                  </Text>
+                </div>
+                <Switch
+                  checked={form.auto_include_core_memory}
+                  onChange={(_, data) =>
+                    set("auto_include_core_memory", data.checked)
+                  }
+                />
+              </div>
               <div className="setting-switch-row">
                 <div>
                   <Text weight="semibold">
@@ -669,6 +841,60 @@ function SettingsForm({
                     set("include_superseded_search", data.checked)
                   }
                 />
+              </div>
+            </Card>
+            <div className="settings-save-row">
+              <Button
+                appearance="primary"
+                icon={<Save20Regular />}
+                disabled={save.isPending}
+                onClick={() =>
+                  save.mutate({
+                    retrieval_result_limit: form.retrieval_result_limit,
+                    rag_chunk_size: form.rag_chunk_size,
+                    rag_chunk_overlap: form.rag_chunk_overlap,
+                    core_memory_result_limit: form.core_memory_result_limit,
+                    selected_document_result_limit:
+                      form.selected_document_result_limit,
+                    max_context_characters: form.max_context_characters,
+                    chat_history_message_limit: form.chat_history_message_limit,
+                    auto_include_core_memory: form.auto_include_core_memory,
+                    include_superseded_search: form.include_superseded_search,
+                  })
+                }
+              >
+                Save retrieval settings
+              </Button>
+            </div>
+          </>
+        ) : null}
+
+        {section === "documents" ? (
+          <>
+            <div className="section-heading">
+              <div>
+                <Text className="eyebrow">LOCAL DOCUMENT ENGINE</Text>
+                <Title3>Documents</Title3>
+                <Text className="section-description">
+                  Control directory browsing and safe indexing limits for every
+                  project.
+                </Text>
+              </div>
+            </div>
+            <Card className="settings-module" appearance="outline">
+              <div className="settings-module__heading">
+                <div className="settings-module__icon">
+                  <FolderOpen20Regular />
+                </div>
+                <div>
+                  <Text weight="semibold" size={400}>
+                    File browser & indexing
+                  </Text>
+                  <Text className="muted-text">
+                    Project-specific exclusions are controlled inside each
+                    project.
+                  </Text>
+                </div>
               </div>
               <Field
                 label="Default project root"
@@ -690,6 +916,35 @@ function SettingsForm({
                   </Button>
                 </div>
               </Field>
+              <Field
+                label="Maximum file size to index (MB)"
+                hint="Larger files remain visible in the directory but are not extracted."
+              >
+                <Input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={String(form.max_index_file_size_mb)}
+                  onChange={(_, data) =>
+                    set("max_index_file_size_mb", numeric(data.value, 150))
+                  }
+                />
+              </Field>
+              <div className="setting-switch-row">
+                <div>
+                  <Text weight="semibold">
+                    Show hidden files in directory browser
+                  </Text>
+                  <Text size={200}>
+                    Hidden system and tool folders remain excluded unless also
+                    allowed by the project’s exclusion list.
+                  </Text>
+                </div>
+                <Switch
+                  checked={form.show_hidden_files}
+                  onChange={(_, data) => set("show_hidden_files", data.checked)}
+                />
+              </div>
             </Card>
             <div className="settings-save-row">
               <Button
@@ -698,13 +953,13 @@ function SettingsForm({
                 disabled={save.isPending}
                 onClick={() =>
                   save.mutate({
-                    retrieval_result_limit: form.retrieval_result_limit,
-                    include_superseded_search: form.include_superseded_search,
                     default_project_root: form.default_project_root,
+                    show_hidden_files: form.show_hidden_files,
+                    max_index_file_size_mb: form.max_index_file_size_mb,
                   })
                 }
               >
-                Save retrieval settings
+                Save document settings
               </Button>
             </div>
           </>

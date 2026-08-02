@@ -1,6 +1,6 @@
 # Phase 1 — Foundation
 
-> Historical verification record for version 0.1.0. The current 0.2.0 product also includes the usable document, exact-search, Kimi chat, draft-review, backup, and modular-settings baselines described in the implementation plan.
+> Historical verification record for version 0.1.0. The current 0.3.0 product also includes the connected document browser, controlled RAG/project memory, project chats, review register, CRS, backup, and modular-settings workflows described in the implementation plan.
 
 ## Objective
 
@@ -51,4 +51,4 @@ The build output is an NSIS setup executable. The final-user machine does not re
 
 ## Deferred by design in Phase 1
 
-Version 0.1.0 did not import documents, index text, call an AI provider, or claim that an installer had been release-signed. Version 0.2.0 implements the first three as controlled working baselines; release signing remains a release-management gate.
+Version 0.1.0 did not import documents, index text, call an AI provider, or claim that an installer had been release-signed. Versions 0.2.0 and 0.3.0 implement the first three as controlled working workflows; release signing remains a release-management gate.

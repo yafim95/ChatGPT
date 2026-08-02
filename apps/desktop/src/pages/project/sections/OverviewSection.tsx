@@ -1,291 +1,360 @@
 import { useQuery } from "@tanstack/react-query";
 import {
+  Badge,
   Button,
-  Card,
   MessageBar,
   MessageBarBody,
   Spinner,
   Text,
-  Title3,
 } from "@fluentui/react-components";
 import {
   ArrowRight20Regular,
-  Chat24Regular,
-  ClipboardTask24Regular,
-  Document24Regular,
-  FolderOpen24Regular,
-  Warning24Regular,
+  Bot20Regular,
+  Chat20Regular,
+  ClipboardTask20Regular,
+  Document20Regular,
+  FolderOpen20Regular,
+  Settings20Regular,
+  Sparkle20Regular,
+  Warning20Regular,
 } from "@fluentui/react-icons";
 import { api } from "../../../api/client";
-import { useAppLocale } from "../../../app/LocaleContext";
-import type { ProjectSection } from "../../../components/AppShell";
 import type { Project, ProjectSummary } from "../../../types/api";
+import type { ProjectSection } from "../../../components/AppShell";
 
 interface OverviewSectionProps {
   project: Project;
   summary?: ProjectSummary;
   summaryError?: boolean;
   onNavigate: (section: ProjectSection) => void;
+  onOpenConversation: (conversationId: string) => void;
   onEditProject: () => void;
-}
-
-function SummaryCard({
-  icon,
-  value,
-  label,
-  warning = false,
-}: {
-  icon: React.ReactElement;
-  value: number;
-  label: string;
-  warning?: boolean;
-}): React.JSX.Element {
-  const locale = useAppLocale();
-  return (
-    <Card
-      className={`summary-card${warning ? " summary-card--warning" : ""}`}
-      appearance="outline"
-    >
-      <div className="summary-card__icon">{icon}</div>
-      <div>
-        <Text className="summary-card__value">
-          {value.toLocaleString(locale)}
-        </Text>
-        <Text className="muted-text">{label}</Text>
-      </div>
-    </Card>
-  );
 }
 
 export function OverviewSection({
   project,
   summary,
-  summaryError = false,
+  summaryError,
   onNavigate,
+  onOpenConversation,
   onEditProject,
 }: OverviewSectionProps): React.JSX.Element {
-  const locale = useAppLocale();
   const documents = useQuery({
-    queryKey: ["documents", project.id, "recent"],
+    queryKey: ["documents", project.id, "overview"],
     queryFn: () => api.listDocuments(project.id),
     enabled: Boolean(project.settings.workspace_path),
   });
-  const recent = documents.data?.items.slice(0, 5) ?? [];
+  const reviews = useQuery({
+    queryKey: ["reviews", project.id, "overview"],
+    queryFn: () => api.listReviews(project.id),
+  });
+  const conversations = useQuery({
+    queryKey: ["conversations", project.id, "overview"],
+    queryFn: () => api.listConversations(project.id),
+  });
+  const openReviews = (reviews.data ?? []).filter(
+    (review) => review.workflow_state === "open",
+  );
+  const recentDocuments = documents.data?.items.slice(0, 5) ?? [];
+  const attentionCount =
+    (summary?.failed_document_count ?? 0) +
+    (summary?.missing_document_count ?? 0);
 
   return (
-    <div className="section-stack">
+    <div className="command-center section-stack">
       {!project.settings.workspace_path ? (
-        <div className="attention-banner">
+        <section className="attention-banner attention-banner-v3 glass-surface">
           <div className="attention-banner__icon">
-            <FolderOpen24Regular />
+            <FolderOpen20Regular />
           </div>
           <div>
-            <Text weight="semibold">Choose the project document folder</Text>
+            <Text className="eyebrow">SETUP REQUIRED</Text>
+            <Text weight="semibold">
+              Connect the existing project directory
+            </Text>
             <Text>
-              Connect the local folder that contains this project’s
-              specifications, drawings, submittals, correspondence, and reports.
+              Choose the folder that already contains the project documents,
+              then synchronize the local index. Files remain in their current
+              locations.
             </Text>
           </div>
           <Button
             appearance="primary"
             onClick={() => onNavigate("project-settings")}
           >
-            Choose folder
+            Open project controls
           </Button>
-        </div>
+        </section>
       ) : null}
 
       {summaryError ? (
         <MessageBar intent="error">
           <MessageBarBody>
-            The project summary could not be loaded. Document actions remain
-            available.
+            The live project summary could not be loaded. Workspace actions
+            remain available.
           </MessageBarBody>
         </MessageBar>
       ) : null}
 
-      <div className="section-heading">
+      <section className="command-intro">
         <div>
-          <Text className="eyebrow">AT A GLANCE</Text>
-          <Title3>Workspace overview</Title3>
-        </div>
-        {summary?.last_indexed_at ? (
-          <Text className="muted-text" size={200}>
-            Last indexed{" "}
-            {new Date(summary.last_indexed_at).toLocaleString(locale)}
+          <Text className="eyebrow">PROJECT COMMAND CENTER</Text>
+          <h2>Good to see the project under control.</h2>
+          <Text>
+            Browse the source directory, continue evidence-linked chats, manage
+            review decisions, and close CRS comments from one workspace.
           </Text>
-        ) : null}
-      </div>
-      <div className="summary-grid">
-        <SummaryCard
-          icon={<Document24Regular />}
-          value={summary?.current_document_count ?? 0}
-          label="Current documents"
-        />
-        <SummaryCard
-          icon={<Chat24Regular />}
-          value={summary?.conversation_count ?? 0}
-          label="Conversations"
-        />
-        <SummaryCard
-          icon={<ClipboardTask24Regular />}
-          value={summary?.review_count ?? 0}
-          label="Draft reviews"
-        />
-        <SummaryCard
-          icon={<Warning24Regular />}
-          value={
-            (summary?.failed_document_count ?? 0) +
-            (summary?.missing_document_count ?? 0)
-          }
-          label="Items needing attention"
-          warning={Boolean(
-            (summary?.failed_document_count ?? 0) +
-            (summary?.missing_document_count ?? 0),
-          )}
-        />
+        </div>
+        <div className="command-intro__status glass-surface">
+          <span className={attentionCount ? "is-warning" : "is-ready"} />
+          <div>
+            <Text weight="semibold">
+              {attentionCount
+                ? `${String(attentionCount)} indexing items need attention`
+                : "Document index healthy"}
+            </Text>
+            <Text size={100}>
+              {summary?.last_indexed_at
+                ? `Last synchronized ${new Date(summary.last_indexed_at).toLocaleString()}`
+                : "Run the first directory synchronization"}
+            </Text>
+          </div>
+        </div>
+      </section>
+
+      <div className="command-stat-grid">
+        <button
+          className="command-stat glass-surface"
+          onClick={() => onNavigate("files")}
+        >
+          <span className="command-stat__icon command-stat__icon--blue">
+            <Document20Regular />
+          </span>
+          <span>
+            <strong>{summary?.current_document_count ?? 0}</strong>
+            <small>indexed documents</small>
+          </span>
+          <ArrowRight20Regular />
+        </button>
+        <button
+          className="command-stat glass-surface"
+          onClick={() => onNavigate("reviews")}
+        >
+          <span className="command-stat__icon command-stat__icon--amber">
+            <ClipboardTask20Regular />
+          </span>
+          <span>
+            <strong>{summary?.open_review_count ?? 0}</strong>
+            <small>open reviews</small>
+          </span>
+          <ArrowRight20Regular />
+        </button>
+        <button
+          className="command-stat glass-surface"
+          onClick={() => onNavigate("reviews")}
+        >
+          <span className="command-stat__icon command-stat__icon--rose">
+            <Chat20Regular />
+          </span>
+          <span>
+            <strong>{summary?.open_crs_item_count ?? 0}</strong>
+            <small>open CRS comments</small>
+          </span>
+          <ArrowRight20Regular />
+        </button>
+        <button
+          className="command-stat glass-surface"
+          onClick={() => onNavigate("memory")}
+        >
+          <span className="command-stat__icon command-stat__icon--violet">
+            <Sparkle20Regular />
+          </span>
+          <span>
+            <strong>{summary?.core_memory_count ?? 0}</strong>
+            <small>project-memory files</small>
+          </span>
+          <ArrowRight20Regular />
+        </button>
       </div>
 
-      <div className="overview-grid">
-        <Card className="overview-panel" appearance="outline">
+      <div className="command-layout">
+        <section className="command-panel command-panel--reviews glass-surface">
           <div className="panel-heading">
             <div>
-              <Text className="eyebrow">QUICK ACTIONS</Text>
-              <Title3>Continue your work</Title3>
+              <Text className="eyebrow">REVIEW PIPELINE</Text>
+              <h3>Open document reviews</h3>
             </div>
-          </div>
-          <div className="quick-actions">
-            <button onClick={() => onNavigate("documents")}>
-              <span className="quick-action__icon">
-                <Document24Regular />
-              </span>
-              <span>
-                <Text weight="semibold">Manage documents</Text>
-                <Text size={200}>
-                  Scan, search, preview, and track revisions
-                </Text>
-              </span>
-              <ArrowRight20Regular />
-            </button>
-            <button onClick={() => onNavigate("ask")}>
-              <span className="quick-action__icon">
-                <Chat24Regular />
-              </span>
-              <span>
-                <Text weight="semibold">Ask ProjectMind</Text>
-                <Text size={200}>Question indexed evidence with citations</Text>
-              </span>
-              <ArrowRight20Regular />
-            </button>
-            <button onClick={() => onNavigate("reviews")}>
-              <span className="quick-action__icon">
-                <ClipboardTask24Regular />
-              </span>
-              <span>
-                <Text weight="semibold">Start an engineering review</Text>
-                <Text size={200}>
-                  Material, method statement, ITP, drawing, or report
-                </Text>
-              </span>
-              <ArrowRight20Regular />
-            </button>
-          </div>
-        </Card>
-
-        <Card className="overview-panel" appearance="outline">
-          <div className="panel-heading">
-            <div>
-              <Text className="eyebrow">RECENTLY INDEXED</Text>
-              <Title3>Documents</Title3>
-            </div>
-            <Button appearance="subtle" onClick={() => onNavigate("documents")}>
-              View all
+            <Button appearance="subtle" onClick={() => onNavigate("reviews")}>
+              View register
             </Button>
           </div>
-          {!project.settings.workspace_path ? (
-            <div className="panel-empty">
-              <Text weight="semibold">Project folder not configured</Text>
-              <Text className="muted-text">
-                Choose a folder before indexing documents.
-              </Text>
-              <Button onClick={() => onNavigate("project-settings")}>
-                Choose folder
-              </Button>
-            </div>
-          ) : documents.isPending ? (
-            <Spinner label="Loading recent documents…" />
-          ) : documents.isError ? (
-            <MessageBar intent="error">
-              <MessageBarBody>
-                Recent documents could not be loaded.
-              </MessageBarBody>
-            </MessageBar>
-          ) : recent.length ? (
-            <div className="compact-document-list">
-              {recent.map((document) => (
-                <button
-                  key={document.id}
-                  onClick={() => onNavigate("documents")}
-                >
-                  <span
-                    className={`file-badge file-badge--${document.extension.replace(".", "")}`}
-                  >
-                    {document.extension.replace(".", "").toUpperCase()}
+          {reviews.isPending ? (
+            <Spinner label="Loading review register…" />
+          ) : openReviews.length ? (
+            <div className="overview-review-list">
+              {openReviews.slice(0, 6).map((review) => (
+                <button key={review.id} onClick={() => onNavigate("reviews")}>
+                  <span className="review-state-dot review-state-dot--open" />
+                  <span>
+                    <strong>{review.title}</strong>
+                    <small>
+                      {review.document_file_name ??
+                        review.review_type.replaceAll("_", " ")}
+                    </small>
                   </span>
                   <span>
-                    <Text weight="semibold" truncate>
-                      {document.file_name}
-                    </Text>
-                    <Text size={100} truncate>
-                      {document.relative_path}
-                    </Text>
+                    {review.decision_code ? (
+                      <Badge appearance="filled">
+                        Code {review.decision_code}
+                      </Badge>
+                    ) : (
+                      <Badge appearance="outline">Pending</Badge>
+                    )}
+                    <small>
+                      {review.due_at
+                        ? new Date(review.due_at).toLocaleDateString()
+                        : "No due date"}
+                    </small>
                   </span>
                 </button>
               ))}
             </div>
           ) : (
-            <div className="panel-empty">
-              <Text weight="semibold">No indexed documents</Text>
-              <Text className="muted-text">
-                Open Documents and scan the configured folder.
+            <div className="panel-empty panel-empty--large">
+              <ClipboardTask20Regular />
+              <Text weight="semibold">No open reviews</Text>
+              <Text>
+                Select a submitted document and start a controlled review.
               </Text>
-              <Button onClick={() => onNavigate("documents")}>
-                Open documents
+              <Button
+                appearance="primary"
+                onClick={() => onNavigate("reviews")}
+              >
+                Create review
               </Button>
             </div>
           )}
-        </Card>
+        </section>
+
+        <section className="command-panel glass-surface">
+          <div className="panel-heading">
+            <div>
+              <Text className="eyebrow">RECENT AI WORK</Text>
+              <h3>Project conversations</h3>
+            </div>
+            <Button appearance="subtle" onClick={() => onNavigate("ai")}>
+              Open AI workspace
+            </Button>
+          </div>
+          {conversations.isPending ? (
+            <Spinner size="tiny" />
+          ) : conversations.data?.length ? (
+            <div className="overview-chat-list">
+              {conversations.data.slice(0, 5).map((conversation) => (
+                <button
+                  key={conversation.id}
+                  onClick={() => onOpenConversation(conversation.id)}
+                >
+                  <span>
+                    <Bot20Regular />
+                  </span>
+                  <span>
+                    <strong>{conversation.title}</strong>
+                    <small>
+                      {conversation.documents.length
+                        ? conversation.documents
+                            .map((item) => item.file_name)
+                            .slice(0, 2)
+                            .join(", ")
+                        : "General project context"}
+                    </small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="panel-empty panel-empty--large">
+              <Bot20Regular />
+              <Text weight="semibold">No project chats yet</Text>
+              <Text>Select files and start an evidence-linked discussion.</Text>
+              <Button onClick={() => onNavigate("ai")}>Start chat</Button>
+            </div>
+          )}
+        </section>
       </div>
 
-      <Card className="project-information" appearance="outline">
-        <div className="panel-heading">
-          <div>
-            <Text className="eyebrow">PROJECT IDENTITY</Text>
-            <Title3>Key parties</Title3>
+      <div className="command-layout command-layout--secondary">
+        <section className="command-panel glass-surface">
+          <div className="panel-heading">
+            <div>
+              <Text className="eyebrow">RECENTLY INDEXED</Text>
+              <h3>Project documents</h3>
+            </div>
+            <Button appearance="subtle" onClick={() => onNavigate("files")}>
+              Browse all
+            </Button>
           </div>
-          <Button appearance="subtle" onClick={onEditProject}>
-            Edit
-          </Button>
-        </div>
-        <dl>
-          <div>
-            <dt>Client</dt>
-            <dd>{project.client ?? "Not specified"}</dd>
+          <div className="overview-document-list">
+            {recentDocuments.map((document) => (
+              <button key={document.id} onClick={() => onNavigate("files")}>
+                <span className="file-kind-icon">
+                  <Document20Regular />
+                </span>
+                <span>
+                  <strong>{document.file_name}</strong>
+                  <small>{document.relative_path}</small>
+                </span>
+                {document.is_core_memory ? (
+                  <Badge appearance="tint" color="brand">
+                    Memory
+                  </Badge>
+                ) : document.extraction_status !== "ready" ? (
+                  <Warning20Regular />
+                ) : null}
+              </button>
+            ))}
+            {!documents.isPending && !recentDocuments.length ? (
+              <div className="panel-empty">
+                <Text>No indexed documents yet.</Text>
+              </div>
+            ) : null}
           </div>
-          <div>
-            <dt>Consultant</dt>
-            <dd>{project.consultant ?? "Not specified"}</dd>
+        </section>
+
+        <section className="command-panel project-parties glass-surface">
+          <div className="panel-heading">
+            <div>
+              <Text className="eyebrow">PROJECT IDENTITY</Text>
+              <h3>Key parties</h3>
+            </div>
+            <Button
+              appearance="subtle"
+              icon={<Settings20Regular />}
+              onClick={onEditProject}
+            >
+              Edit
+            </Button>
           </div>
-          <div>
-            <dt>Main contractor</dt>
-            <dd>{project.contractor ?? "Not specified"}</dd>
-          </div>
-          <div>
-            <dt>Description</dt>
-            <dd>{project.description ?? "No description added"}</dd>
-          </div>
-        </dl>
-      </Card>
+          <dl>
+            <div>
+              <dt>Client</dt>
+              <dd>{project.client ?? "Not specified"}</dd>
+            </div>
+            <div>
+              <dt>Consultant</dt>
+              <dd>{project.consultant ?? "Not specified"}</dd>
+            </div>
+            <div>
+              <dt>Main contractor</dt>
+              <dd>{project.contractor ?? "Not specified"}</dd>
+            </div>
+            <div>
+              <dt>Project description</dt>
+              <dd>{project.description ?? "No description added"}</dd>
+            </div>
+          </dl>
+        </section>
+      </div>
     </div>
   );
 }

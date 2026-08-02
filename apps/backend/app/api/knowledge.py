@@ -9,20 +9,36 @@ from app.schemas.knowledge import (
     ConversationRead,
     DocumentPage,
     DocumentPreview,
+    DocumentRead,
     ProjectSummary,
+    ReindexSummary,
     ReviewCreate,
     ReviewRead,
+    ReviewUpdate,
     ScanSummary,
     SearchResponse,
+)
+from app.schemas.workspace import (
+    CrsCreate,
+    CrsItemCreate,
+    CrsItemUpdate,
+    CrsRead,
+    CrsUpdate,
+    DirectoryListing,
+    DocumentRelationships,
+    DocumentWorkflowUpdate,
 )
 from app.services.chat import ChatService
 from app.services.documents import DocumentService
 from app.services.reviews import ReviewService
+from app.services.workspace import CrsService, WorkspaceService
 
 router = APIRouter(prefix="/api/projects/{project_id}", tags=["knowledge"])
 documents = DocumentService()
 chat = ChatService()
 reviews = ReviewService()
+workspace = WorkspaceService()
+crs = CrsService()
 
 
 @router.get("/summary", response_model=ProjectSummary)
@@ -54,6 +70,29 @@ async def scan_documents(project_id: str, session: SessionDep) -> ScanSummary:
     return await documents.scan(session, project_id)
 
 
+@router.post("/documents/reindex", response_model=ReindexSummary)
+async def rebuild_document_passages(
+    project_id: str,
+    session: SessionDep,
+) -> ReindexSummary:
+    return await documents.rebuild_passages(session, project_id)
+
+
+@router.get("/files", response_model=DirectoryListing)
+async def browse_project_files(
+    project_id: str,
+    session: SessionDep,
+    path: str = Query(default="", max_length=2000),
+    query: str | None = Query(default=None, max_length=300),
+) -> DirectoryListing:
+    return await workspace.browse(
+        session,
+        project_id,
+        relative_path=path,
+        query=query,
+    )
+
+
 @router.get("/documents/search", response_model=SearchResponse)
 async def search_documents(
     project_id: str,
@@ -78,6 +117,28 @@ async def preview_document(
     session: SessionDep,
 ) -> DocumentPreview:
     return await documents.preview(session, project_id, document_id)
+
+
+@router.patch("/documents/{document_id}", response_model=DocumentRead)
+async def update_document_workflow(
+    project_id: str,
+    document_id: str,
+    payload: DocumentWorkflowUpdate,
+    session: SessionDep,
+) -> DocumentRead:
+    return await workspace.update_document(session, project_id, document_id, payload)
+
+
+@router.get(
+    "/documents/{document_id}/relationships",
+    response_model=DocumentRelationships,
+)
+async def document_relationships(
+    project_id: str,
+    document_id: str,
+    session: SessionDep,
+) -> DocumentRelationships:
+    return await workspace.relationships(session, project_id, document_id)
 
 
 @router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -137,6 +198,16 @@ async def create_review(
     )
 
 
+@router.patch("/reviews/{review_id}", response_model=ReviewRead)
+async def update_review(
+    project_id: str,
+    review_id: str,
+    payload: ReviewUpdate,
+    session: SessionDep,
+) -> ReviewRead:
+    return await reviews.update(session, project_id, review_id, payload)
+
+
 @router.get("/reviews/{review_id}", response_model=ReviewRead)
 async def get_review(
     project_id: str,
@@ -144,3 +215,82 @@ async def get_review(
     session: SessionDep,
 ) -> ReviewRead:
     return await reviews.get(session, project_id, review_id)
+
+
+@router.get("/crs", response_model=list[CrsRead])
+async def list_crs(
+    project_id: str,
+    session: SessionDep,
+    document_id: str | None = Query(default=None, max_length=36),
+) -> list[CrsRead]:
+    return await crs.list(session, project_id, document_id=document_id)
+
+
+@router.post("/crs", response_model=CrsRead, status_code=status.HTTP_201_CREATED)
+async def create_crs(
+    project_id: str,
+    payload: CrsCreate,
+    session: SessionDep,
+) -> CrsRead:
+    return await crs.create(session, project_id, payload)
+
+
+@router.get("/crs/{sheet_id}", response_model=CrsRead)
+async def get_crs(project_id: str, sheet_id: str, session: SessionDep) -> CrsRead:
+    return await crs.get(session, project_id, sheet_id)
+
+
+@router.patch("/crs/{sheet_id}", response_model=CrsRead)
+async def update_crs(
+    project_id: str,
+    sheet_id: str,
+    payload: CrsUpdate,
+    session: SessionDep,
+) -> CrsRead:
+    return await crs.update(session, project_id, sheet_id, payload)
+
+
+@router.post("/crs/{sheet_id}/items", response_model=CrsRead)
+async def add_crs_item(
+    project_id: str,
+    sheet_id: str,
+    payload: CrsItemCreate,
+    session: SessionDep,
+) -> CrsRead:
+    return await crs.add_item(session, project_id, sheet_id, payload)
+
+
+@router.patch("/crs/{sheet_id}/items/{item_id}", response_model=CrsRead)
+async def update_crs_item(
+    project_id: str,
+    sheet_id: str,
+    item_id: str,
+    payload: CrsItemUpdate,
+    session: SessionDep,
+) -> CrsRead:
+    return await crs.update_item(session, project_id, sheet_id, item_id, payload)
+
+
+@router.delete("/crs/{sheet_id}/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_crs_item(
+    project_id: str,
+    sheet_id: str,
+    item_id: str,
+    session: SessionDep,
+) -> Response:
+    await crs.delete_item(session, project_id, sheet_id, item_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/crs/{sheet_id}/export")
+async def export_crs(
+    project_id: str,
+    sheet_id: str,
+    session: SessionDep,
+) -> Response:
+    content = await crs.export_csv(session, project_id, sheet_id)
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="CRS-{sheet_id[:8]}.csv"'},
+    )

@@ -225,7 +225,10 @@ async def test_project_chat_preserves_k3_messages_and_controlled_context(
         "/api/provider/key",
         json={"api_key": "test-provider-key-value"},
     )
-    await client.patch("/api/settings", json={"external_ai_enabled": True})
+    await client.patch(
+        "/api/settings",
+        json={"external_ai_enabled": True, "auto_include_core_memory": False},
+    )
 
     requests: list[list[dict[str, Any]]] = []
 
@@ -270,6 +273,295 @@ async def test_project_chat_preserves_k3_messages_and_controlled_context(
         message.get("reasoning_content") == "The cited excerpt directly states the duration."
         for message in requests[1]
     )
+
+
+async def test_workspace_browser_workflow_and_path_boundaries(
+    client: AsyncClient,
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "document-control"
+    (workspace / "Drawings").mkdir(parents=True)
+    (workspace / "Archive").mkdir()
+    (workspace / "Contract.txt").write_text(
+        "The contract requires a 14-day technical review period.",
+        encoding="utf-8",
+    )
+    (workspace / "Drawings" / "A-101.dwg").write_bytes(b"drawing-placeholder")
+    (workspace / "Archive" / "Old Specification.txt").write_text(
+        "Superseded archive text.",
+        encoding="utf-8",
+    )
+    project = await _create_project(client, workspace)
+    project_id = project["id"]
+    settings = await client.patch(
+        f"/api/projects/{project_id}/settings",
+        json={"excluded_patterns": ["Archive*"]},
+    )
+    assert settings.status_code == 200
+
+    scan = await client.post(f"/api/projects/{project_id}/documents/scan")
+    assert scan.status_code == 200
+    assert scan.json()["discovered"] == 1
+    rebuilt = await client.post(f"/api/projects/{project_id}/documents/reindex")
+    assert rebuilt.status_code == 200
+    assert rebuilt.json()["documents"] == 1
+    assert rebuilt.json()["passages"] == 1
+
+    root = await client.get(f"/api/projects/{project_id}/files")
+    assert root.status_code == 200
+    assert [item["name"] for item in root.json()["items"]] == [
+        "Drawings",
+        "Contract.txt",
+    ]
+    contract = next(item for item in root.json()["items"] if item["name"] == "Contract.txt")
+    assert contract["indexed_document_id"]
+
+    drawings = await client.get(
+        f"/api/projects/{project_id}/files",
+        params={"path": "Drawings"},
+    )
+    assert drawings.status_code == 200
+    assert drawings.json()["parent_path"] == ""
+    assert drawings.json()["items"][0]["name"] == "A-101.dwg"
+    assert drawings.json()["items"][0]["supported"] is False
+
+    search = await client.get(
+        f"/api/projects/{project_id}/files",
+        params={"query": "A-101"},
+    )
+    assert search.status_code == 200
+    assert search.json()["items"][0]["relative_path"] == "Drawings/A-101.dwg"
+
+    escaped = await client.get(
+        f"/api/projects/{project_id}/files",
+        params={"path": "../"},
+    )
+    assert escaped.status_code == 409
+    assert escaped.json()["error"]["code"] == "invalid_workspace_path"
+
+    updated = await client.patch(
+        f"/api/projects/{project_id}/documents/{contract['indexed_document_id']}",
+        json={
+            "is_core_memory": True,
+            "memory_category": "Contract",
+            "workflow_state": "under_review",
+            "review_code": "2",
+        },
+    )
+    assert updated.status_code == 200
+    assert updated.json()["is_core_memory"] is True
+    assert updated.json()["memory_category"] == "Contract"
+    assert updated.json()["workflow_state"] == "under_review"
+    assert updated.json()["review_code"] == "2"
+
+    invalid_code = await client.patch(
+        f"/api/projects/{project_id}/documents/{contract['indexed_document_id']}",
+        json={"review_code": "99"},
+    )
+    assert invalid_code.status_code == 409
+    assert invalid_code.json()["error"]["code"] == "invalid_review_code"
+
+
+async def test_chat_prioritizes_selected_files_and_persistent_project_memory(
+    client: AsyncClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "rag-workspace"
+    workspace.mkdir()
+    (workspace / "Main Contract.txt").write_text(
+        "Liquidated damages are AED 5,000 for each calendar day of delay.",
+        encoding="utf-8",
+    )
+    (workspace / "Facade Submittal.txt").write_text(
+        "The proposed aluminium coating colour is RAL 7016 anthracite grey.",
+        encoding="utf-8",
+    )
+    project = await _create_project(client, workspace)
+    project_id = project["id"]
+    await client.post(f"/api/projects/{project_id}/documents/scan")
+    documents = (await client.get(f"/api/projects/{project_id}/documents")).json()["items"]
+    contract = next(item for item in documents if item["file_name"] == "Main Contract.txt")
+    submittal = next(item for item in documents if item["file_name"] == "Facade Submittal.txt")
+    memory = await client.patch(
+        f"/api/projects/{project_id}/documents/{contract['id']}",
+        json={"is_core_memory": True, "memory_category": "Contract"},
+    )
+    assert memory.status_code == 200
+    await client.put("/api/provider/key", json={"api_key": "test-provider-key-value"})
+    await client.patch(
+        "/api/settings",
+        json={"external_ai_enabled": True, "auto_include_core_memory": False},
+    )
+
+    provider_messages: list[list[dict[str, Any]]] = []
+
+    async def fake_complete(
+        _client: ProviderClient,
+        _settings: object,
+        _api_key: str,
+        messages: list[dict[str, Any]],
+    ) -> ProviderCompletion:
+        provider_messages.append(messages)
+        return ProviderCompletion(
+            content="The selected finish is RAL 7016 [S1]; delay damages are AED 5,000/day [S2].",
+            message={"role": "assistant", "content": "Evidence-linked response."},
+        )
+
+    monkeypatch.setattr(ProviderClient, "complete", fake_complete)
+    answer = await client.post(
+        f"/api/projects/{project_id}/chat",
+        json={
+            "message": "Compare the coating colour with the liquidated damages requirement.",
+            "mode": "evidence",
+            "document_ids": [submittal["id"]],
+            "include_core_memory": True,
+        },
+    )
+    assert answer.status_code == 200
+    assert answer.json()["conversation_id"]
+    tiers = {source["source_tier"] for source in answer.json()["sources"]}
+    assert {"selected", "core_memory"}.issubset(tiers)
+    assert "Project-specific AI instructions" in provider_messages[0][-1]["content"]
+
+    conversation = await client.get(
+        f"/api/projects/{project_id}/conversations/{answer.json()['conversation_id']}"
+    )
+    relations = {
+        item["document_id"]: item["relation_type"] for item in conversation.json()["documents"]
+    }
+    assert relations[submittal["id"]] == "context"
+    assert relations[contract["id"]] == "memory"
+
+    related = await client.get(
+        f"/api/projects/{project_id}/documents/{submittal['id']}/relationships"
+    )
+    assert related.status_code == 200
+    assert related.json()["conversations"][0]["id"] == answer.json()["conversation_id"]
+    assert related.json()["conversations"][0]["message_count"] == 2
+
+
+async def test_manual_review_crs_decision_and_revision_lifecycle(
+    client: AsyncClient,
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "review-workspace"
+    workspace.mkdir()
+    source = workspace / "Structural Submittal.txt"
+    source.write_text(
+        "Beam B12 is proposed as 500 by 300 millimetres.",
+        encoding="utf-8",
+    )
+    project = await _create_project(client, workspace)
+    project_id = project["id"]
+    await client.patch(
+        f"/api/projects/{project_id}/settings",
+        json={"auto_create_crs": False},
+    )
+    await client.post(f"/api/projects/{project_id}/documents/scan")
+    document = (await client.get(f"/api/projects/{project_id}/documents")).json()["items"][0]
+
+    review = await client.post(
+        f"/api/projects/{project_id}/reviews",
+        json={
+            "title": "Structural submittal review · Rev 01",
+            "review_type": "shop_drawing",
+            "instructions": "Check dimensions against the controlled project requirements.",
+            "document_id": document["id"],
+            "reference_number": "SD-STR-0042",
+            "discipline": "Structural",
+            "generate_with_ai": False,
+            "create_crs": True,
+        },
+    )
+    assert review.status_code == 201
+    assert len(review.json()["crs_ids"]) == 1
+    review_id = review.json()["id"]
+    sheet_id = review.json()["crs_ids"][0]
+
+    added = await client.post(
+        f"/api/projects/{project_id}/crs/{sheet_id}/items",
+        json={
+            "location": "Drawing S-201 / Beam B12",
+            "consultant_comment": "Provide the governing design calculation for the proposed size.",
+        },
+    )
+    assert added.status_code == 200
+    assert added.json()["status"] == "open"
+    item_id = added.json()["items"][0]["id"]
+
+    closed_item = await client.patch(
+        f"/api/projects/{project_id}/crs/{sheet_id}/items/{item_id}",
+        json={
+            "contractor_reply": "Calculation STR-CALC-118 submitted.",
+            "consultant_response": "Accepted for this review stage.",
+            "status": "closed",
+        },
+    )
+    assert closed_item.status_code == 200
+    assert closed_item.json()["status"] == "closed"
+
+    exported = await client.get(f"/api/projects/{project_id}/crs/{sheet_id}/export")
+    assert exported.status_code == 200
+    assert "Consultant Comment" in exported.text
+    assert "STR-CALC-118" in exported.text
+
+    duplicate_sheet = await client.post(
+        f"/api/projects/{project_id}/crs",
+        json={
+            "document_id": document["id"],
+            "review_id": review_id,
+            "title": "Duplicate CRS",
+        },
+    )
+    assert duplicate_sheet.status_code == 409
+    assert duplicate_sheet.json()["error"]["code"] == "crs_already_exists"
+
+    invalid_decision = await client.patch(
+        f"/api/projects/{project_id}/reviews/{review_id}",
+        json={"decision_code": "99"},
+    )
+    assert invalid_decision.status_code == 409
+    assert invalid_decision.json()["error"]["code"] == "invalid_review_code"
+
+    assigned = await client.patch(
+        f"/api/projects/{project_id}/reviews/{review_id}",
+        json={"decision_code": "1"},
+    )
+    assert assigned.status_code == 200
+    cleared = await client.patch(
+        f"/api/projects/{project_id}/reviews/{review_id}",
+        json={"decision_code": None},
+    )
+    assert cleared.status_code == 200
+    refreshed_document = await client.get(f"/api/projects/{project_id}/documents/{document['id']}")
+    assert refreshed_document.json()["document"]["review_code"] is None
+
+    closed_review = await client.patch(
+        f"/api/projects/{project_id}/reviews/{review_id}",
+        json={"decision_code": "2", "workflow_state": "closed"},
+    )
+    assert closed_review.status_code == 200
+    assert closed_review.json()["workflow_state"] == "closed"
+    assert closed_review.json()["decision_code"] == "2"
+
+    source.write_text(
+        "Beam B12 is revised to 550 by 300 millimetres.",
+        encoding="utf-8",
+    )
+    rescanned = await client.post(f"/api/projects/{project_id}/documents/scan")
+    assert rescanned.json()["updated"] == 1
+    current = (await client.get(f"/api/projects/{project_id}/documents")).json()["items"][0]
+    assert current["version_number"] == 2
+    assert current["workflow_state"] == "under_review"
+    assert current["review_code"] is None
+
+    relationships = await client.get(
+        f"/api/projects/{project_id}/documents/{current['id']}/relationships"
+    )
+    assert relationships.status_code == 200
+    assert relationships.json()["reviews"][0]["id"] == review_id
+    assert relationships.json()["crs_sheets"][0]["id"] == sheet_id
 
 
 async def test_manual_backup_and_dashboard(client: AsyncClient, tmp_path: Path) -> None:

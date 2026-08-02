@@ -10,13 +10,14 @@ from sqlalchemy.orm import selectinload
 
 from app.core.errors import ConfigurationError, NotFoundError
 from app.core.secrets import SecretStore
-from app.models.knowledge import ChatMessage, Conversation
+from app.models.knowledge import ChatMessage, Conversation, ConversationDocument, Document
 from app.models.project import Project
 from app.models.settings import ApplicationSettings
 from app.schemas.knowledge import (
     ChatRequest,
     ChatResponse,
     CitationSource,
+    ConversationDocumentRead,
     ConversationRead,
     SearchResult,
 )
@@ -84,22 +85,81 @@ class ChatService:
                 code="provider_key_required",
             )
 
+        selected_documents: list[Document] = []
+        if payload.document_ids:
+            selected_documents = list(
+                (
+                    await session.scalars(
+                        select(Document).where(
+                            Document.project_id == project_id,
+                            Document.id.in_(payload.document_ids),
+                            Document.is_current.is_(True),
+                            Document.is_missing.is_(False),
+                        )
+                    )
+                ).all()
+            )
+            if len(selected_documents) != len(set(payload.document_ids)):
+                raise ConfigurationError(
+                    "One or more selected documents are unavailable in this project.",
+                    code="selected_document_unavailable",
+                )
+
         sources: list[CitationSource] = []
         if payload.mode != "general":
-            search = await self._documents.search(
+            selected_ids = [document.id for document in selected_documents]
+            selected_results = await self._documents.context_for_documents(
                 session,
                 project_id,
                 payload.message,
-                limit=settings.retrieval_result_limit,
-                include_superseded=settings.include_superseded_search,
+                selected_ids,
+                limit=settings.selected_document_result_limit,
+                source_tier="selected",
             )
+            core_ids: list[str] = []
+            if payload.include_core_memory:
+                core_filters = [
+                    Document.project_id == project_id,
+                    Document.is_current.is_(True),
+                    Document.is_missing.is_(False),
+                    Document.is_core_memory.is_(True),
+                ]
+                if selected_ids:
+                    core_filters.append(Document.id.not_in(selected_ids))
+                core_ids = list(await session.scalars(select(Document.id).where(*core_filters)))
+            core_results = await self._documents.context_for_documents(
+                session,
+                project_id,
+                payload.message,
+                core_ids,
+                limit=settings.core_memory_result_limit,
+                source_tier="core_memory",
+            )
+            project_results = (
+                await self._documents.search_chunks(
+                    session,
+                    project_id,
+                    payload.message,
+                    limit=settings.retrieval_result_limit,
+                    include_superseded=settings.include_superseded_search,
+                    source_tier="project",
+                )
+            ).results
             unique_results: list[SearchResult] = []
-            seen_hashes: set[str] = set()
-            for result in search.results:
-                if result.sha256 in seen_hashes:
+            seen_chunks: set[str] = set()
+            context_characters = 0
+            for result in [*selected_results, *core_results, *project_results]:
+                chunk_key = result.chunk_id or f"{result.document_id}:{result.chunk_index}"
+                if chunk_key in seen_chunks:
                     continue
-                seen_hashes.add(result.sha256)
+                if (
+                    unique_results
+                    and context_characters + len(result.excerpt) > settings.max_context_characters
+                ):
+                    continue
+                seen_chunks.add(chunk_key)
                 unique_results.append(result)
+                context_characters += len(result.excerpt)
             sources = [
                 CitationSource(
                     reference=f"S{index}",
@@ -107,7 +167,9 @@ class ChatService:
                     file_name=result.file_name,
                     relative_path=result.relative_path,
                     version_number=result.version_number,
+                    chunk_index=result.chunk_index,
                     excerpt=result.excerpt,
+                    source_tier=result.source_tier,
                 )
                 for index, result in enumerate(unique_results, start=1)
             ]
@@ -126,7 +188,8 @@ class ChatService:
 
         evidence = "\n\n".join(
             f"[Source {source.reference}] {source.file_name} "
-            f"(version {source.version_number}, path: {source.relative_path})\n{source.excerpt}"
+            f"(version {source.version_number}, passage {source.chunk_index + 1}, "
+            f"tier: {source.source_tier}, path: {source.relative_path})\n{source.excerpt}"
             for source in sources
         )
         review_codes = "; ".join(
@@ -146,7 +209,9 @@ class ChatService:
             "Declared document hierarchy: "
             f"{' > '.join(project.settings.document_hierarchy)[:1600] or 'Not specified'}\n"
             "Declared document precedence: "
-            f"{' > '.join(project.settings.document_precedence)[:1600] or 'Not specified'}"
+            f"{' > '.join(project.settings.document_precedence)[:1600] or 'Not specified'}\n"
+            "Project-specific AI instructions: "
+            f"{(project.settings.ai_project_instructions or 'Not specified')[:6000]}"
         )
         user_content = f"{project_context}\n\nUser request:\n{payload.message}"
         if evidence:
@@ -170,7 +235,7 @@ class ChatService:
             )
             if conversation is None:
                 raise NotFoundError("Conversation")
-            for message in conversation.messages[-12:]:
+            for message in conversation.messages[-settings.chat_history_message_limit :]:
                 if message.role in {"user", "assistant"}:
                     messages.append(
                         message.provider_message
@@ -184,7 +249,7 @@ class ChatService:
         if persist and settings.save_chat_history:
             now = datetime.now(UTC)
             if conversation is None:
-                title = " ".join(payload.message.split())[:80]
+                title = payload.conversation_title or " ".join(payload.message.split())[:80]
                 conversation = Conversation(
                     project_id=project_id,
                     title=title or "Project question",
@@ -214,6 +279,36 @@ class ChatService:
                     ),
                 ]
             )
+            relation_by_document: dict[str, str] = {
+                document.id: "context" for document in selected_documents
+            }
+            for source in sources:
+                relation_by_document.setdefault(
+                    source.document_id,
+                    "memory" if source.source_tier == "core_memory" else "evidence",
+                )
+            existing_links = {
+                link.document_id: link
+                for link in await session.scalars(
+                    select(ConversationDocument).where(
+                        ConversationDocument.conversation_id == conversation.id
+                    )
+                )
+            }
+            for document_id, relation_type in relation_by_document.items():
+                existing = existing_links.get(document_id)
+                if existing:
+                    if relation_type == "context":
+                        existing.relation_type = relation_type
+                    continue
+                session.add(
+                    ConversationDocument(
+                        conversation_id=conversation.id,
+                        document_id=document_id,
+                        relation_type=relation_type,
+                        created_at=now,
+                    )
+                )
             record_audit(
                 session,
                 action="chat.answer_created",
@@ -247,7 +342,9 @@ class ChatService:
                 )
             ).all()
         )
-        return [ConversationRead.model_validate(conversation) for conversation in conversations]
+        return [
+            await self._conversation_read(session, conversation) for conversation in conversations
+        ]
 
     async def get_conversation(
         self,
@@ -265,4 +362,47 @@ class ChatService:
         )
         if conversation is None:
             raise NotFoundError("Conversation")
-        return ConversationRead.model_validate(conversation)
+        return await self._conversation_read(session, conversation)
+
+    @staticmethod
+    async def _conversation_read(
+        session: AsyncSession,
+        conversation: Conversation,
+    ) -> ConversationRead:
+        document_ids = [link.document_id for link in conversation.document_links]
+        documents: dict[str, Document] = {}
+        if document_ids:
+            documents = {
+                document.id: document
+                for document in await session.scalars(
+                    select(Document).where(Document.id.in_(document_ids))
+                )
+            }
+        return ConversationRead(
+            id=conversation.id,
+            project_id=conversation.project_id,
+            title=conversation.title,
+            mode=conversation.mode,
+            created_at=conversation.created_at,
+            updated_at=conversation.updated_at,
+            messages=[
+                {
+                    "id": message.id,
+                    "role": message.role,
+                    "content": message.content,
+                    "sources": message.sources,
+                    "created_at": message.created_at,
+                }
+                for message in conversation.messages
+            ],
+            documents=[
+                ConversationDocumentRead(
+                    document_id=link.document_id,
+                    relation_type=link.relation_type,
+                    file_name=documents[link.document_id].file_name,
+                    relative_path=documents[link.document_id].relative_path,
+                )
+                for link in conversation.document_links
+                if link.document_id in documents
+            ],
+        )

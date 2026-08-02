@@ -7,6 +7,7 @@ import { installGlobalFrontendDiagnostics } from "./app/frontendDiagnostics";
 import { queryClient } from "./app/queryClient";
 import { reportRendererMounted } from "./app/rendererLifecycle";
 import "./styles/global.css";
+import "./styles/design-v3.css";
 
 installGlobalFrontendDiagnostics();
 

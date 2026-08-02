@@ -28,6 +28,14 @@ class DocumentRead(ApiModel):
     version_number: int
     is_current: bool
     is_missing: bool
+    is_core_memory: bool
+    memory_category: str | None
+    workflow_state: str
+    review_code: str | None
+    review_closed_at: datetime | None
+    related_chat_count: int = 0
+    review_count: int = 0
+    crs_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -56,14 +64,23 @@ class ScanSummary(ApiModel):
     completed_at: datetime
 
 
+class ReindexSummary(ApiModel):
+    documents: int
+    passages: int
+    completed_at: datetime
+
+
 class SearchResult(ApiModel):
+    chunk_id: str | None = None
     document_id: str
     sha256: str
     file_name: str
     relative_path: str
     version_number: int
+    chunk_index: int = 0
     excerpt: str
     score: float
+    source_tier: str = "project"
 
 
 class SearchResponse(ApiModel):
@@ -78,13 +95,18 @@ class CitationSource(ApiModel):
     file_name: str
     relative_path: str
     version_number: int
+    chunk_index: int = 0
     excerpt: str
+    source_tier: str = "project"
 
 
 class ChatRequest(ApiModel):
     message: str = Field(min_length=2, max_length=12000)
     conversation_id: str | None = Field(default=None, max_length=36)
     mode: Literal["evidence", "project", "general"] = "evidence"
+    document_ids: list[str] = Field(default_factory=list, max_length=20)
+    include_core_memory: bool = True
+    conversation_title: str | None = Field(default=None, min_length=2, max_length=200)
 
 
 class ChatResponse(ApiModel):
@@ -103,6 +125,13 @@ class ChatMessageRead(ApiModel):
     created_at: datetime
 
 
+class ConversationDocumentRead(ApiModel):
+    document_id: str
+    relation_type: str
+    file_name: str
+    relative_path: str
+
+
 class ConversationRead(ApiModel):
     id: str
     project_id: str
@@ -111,6 +140,7 @@ class ConversationRead(ApiModel):
     created_at: datetime
     updated_at: datetime
     messages: list[ChatMessageRead] = Field(default_factory=list)
+    documents: list[ConversationDocumentRead] = Field(default_factory=list)
 
 
 class ReviewCreate(ApiModel):
@@ -124,17 +154,45 @@ class ReviewCreate(ApiModel):
         "general",
     ]
     instructions: str = Field(min_length=5, max_length=12000)
+    document_id: str | None = Field(default=None, max_length=36)
+    reference_number: str | None = Field(default=None, max_length=120)
+    discipline: str | None = Field(default=None, max_length=80)
+    decision_code: str | None = Field(default=None, max_length=20)
+    due_at: datetime | None = None
+    generate_with_ai: bool = True
+    create_crs: bool = True
+
+
+class ReviewUpdate(ApiModel):
+    title: str | None = Field(default=None, min_length=2, max_length=200)
+    reference_number: str | None = Field(default=None, max_length=120)
+    discipline: str | None = Field(default=None, max_length=80)
+    result: str | None = Field(default=None, max_length=100000)
+    status: Literal["draft", "final"] | None = None
+    workflow_state: Literal["open", "closed"] | None = None
+    decision_code: str | None = Field(default=None, max_length=20)
+    due_at: datetime | None = None
 
 
 class ReviewRead(ApiModel):
     id: str
     project_id: str
     title: str
+    document_id: str | None
+    document_file_name: str | None = None
+    conversation_id: str | None
     review_type: str
+    reference_number: str | None
+    discipline: str | None
     instructions: str
     result: str
     sources: list[dict[str, object]]
     status: str
+    workflow_state: str
+    decision_code: str | None
+    due_at: datetime | None
+    closed_at: datetime | None
+    crs_ids: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
@@ -147,6 +205,9 @@ class ProjectSummary(ApiModel):
     missing_document_count: int
     conversation_count: int
     review_count: int
+    open_review_count: int
+    core_memory_count: int
+    open_crs_item_count: int
     workspace_configured: bool
     last_indexed_at: datetime | None
 

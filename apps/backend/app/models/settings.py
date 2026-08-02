@@ -25,6 +25,13 @@ class ApplicationSettings(TimestampMixin, Base):
     backup_retention_count: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
     start_view: Mapped[str] = mapped_column(String(30), nullable=False, default="last")
     compact_navigation: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    visual_style: Mapped[str] = mapped_column(String(30), nullable=False, default="glass")
+    interface_density: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="comfortable",
+    )
+    reduce_motion: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     external_ai_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     ai_provider: Mapped[str] = mapped_column(String(40), nullable=False, default="moonshot")
     ai_base_url: Mapped[str] = mapped_column(
@@ -41,6 +48,29 @@ class ApplicationSettings(TimestampMixin, Base):
     ai_timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=180)
     ai_max_output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=16000)
     retrieval_result_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
+    rag_chunk_size: Mapped[int] = mapped_column(Integer, nullable=False, default=1800)
+    rag_chunk_overlap: Mapped[int] = mapped_column(Integer, nullable=False, default=240)
+    core_memory_result_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=6)
+    selected_document_result_limit: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=8,
+    )
+    max_context_characters: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=90000,
+    )
+    chat_history_message_limit: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=16,
+    )
+    auto_include_core_memory: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
     include_superseded_search: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -48,6 +78,8 @@ class ApplicationSettings(TimestampMixin, Base):
     )
     save_chat_history: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     default_project_root: Mapped[str | None] = mapped_column(Text)
+    show_hidden_files: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    max_index_file_size_mb: Mapped[int] = mapped_column(Integer, nullable=False, default=150)
     diagnostic_logging_enabled: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

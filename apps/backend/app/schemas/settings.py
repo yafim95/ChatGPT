@@ -17,6 +17,9 @@ class ApplicationSettingsUpdate(ApiModel):
     backup_retention_count: int | None = Field(default=None, ge=1, le=50)
     start_view: Literal["home", "projects", "last"] | None = None
     compact_navigation: bool | None = None
+    visual_style: Literal["glass", "solid"] | None = None
+    interface_density: Literal["comfortable", "compact"] | None = None
+    reduce_motion: bool | None = None
     external_ai_enabled: bool | None = None
     ai_provider: Literal["moonshot", "openai_compatible"] | None = None
     ai_base_url: HttpUrl | None = None
@@ -25,9 +28,18 @@ class ApplicationSettingsUpdate(ApiModel):
     ai_timeout_seconds: int | None = Field(default=None, ge=10, le=300)
     ai_max_output_tokens: int | None = Field(default=None, ge=256, le=131072)
     retrieval_result_limit: int | None = Field(default=None, ge=1, le=30)
+    rag_chunk_size: int | None = Field(default=None, ge=600, le=6000)
+    rag_chunk_overlap: int | None = Field(default=None, ge=0, le=1200)
+    core_memory_result_limit: int | None = Field(default=None, ge=1, le=30)
+    selected_document_result_limit: int | None = Field(default=None, ge=1, le=40)
+    max_context_characters: int | None = Field(default=None, ge=12000, le=800000)
+    chat_history_message_limit: int | None = Field(default=None, ge=2, le=60)
+    auto_include_core_memory: bool | None = None
     include_superseded_search: bool | None = None
     save_chat_history: bool | None = None
     default_project_root: str | None = Field(default=None, max_length=2000)
+    show_hidden_files: bool | None = None
+    max_index_file_size_mb: int | None = Field(default=None, ge=1, le=500)
     diagnostic_logging_enabled: bool | None = None
 
     @field_validator("brand_name", "ai_model", "default_project_root", mode="before")
@@ -67,6 +79,9 @@ class ApplicationSettingsRead(ApiModel):
     backup_retention_count: int
     start_view: str
     compact_navigation: bool
+    visual_style: str
+    interface_density: str
+    reduce_motion: bool
     external_ai_enabled: bool
     ai_provider: str
     ai_base_url: str
@@ -75,9 +90,18 @@ class ApplicationSettingsRead(ApiModel):
     ai_timeout_seconds: int
     ai_max_output_tokens: int
     retrieval_result_limit: int
+    rag_chunk_size: int
+    rag_chunk_overlap: int
+    core_memory_result_limit: int
+    selected_document_result_limit: int
+    max_context_characters: int
+    chat_history_message_limit: int
+    auto_include_core_memory: bool
     include_superseded_search: bool
     save_chat_history: bool
     default_project_root: str | None
+    show_hidden_files: bool
+    max_index_file_size_mb: int
     diagnostic_logging_enabled: bool
     ai_api_key_configured: bool = False
     created_at: datetime

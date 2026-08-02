@@ -50,6 +50,16 @@ async def test_settings_validate_backup_interval(client: AsyncClient) -> None:
     assert response.status_code == 422
 
 
+async def test_settings_reject_ineffective_passage_overlap(client: AsyncClient) -> None:
+    response = await client.patch(
+        "/api/settings",
+        json={"rag_chunk_size": 1000, "rag_chunk_overlap": 700},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "invalid_retrieval_settings"
+
+
 async def test_remote_provider_requires_https_but_loopback_http_is_allowed(
     client: AsyncClient,
 ) -> None:

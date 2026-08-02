@@ -50,18 +50,21 @@ interface AppRoute {
   settingsSection?: SettingsSection;
 }
 
-const ROUTE_STORAGE_KEY = "projectmind.active-route.v2";
+const ROUTE_STORAGE_KEY = "projectmind.active-route.v3";
 const PROJECT_SECTIONS: ProjectSection[] = [
   "overview",
-  "documents",
-  "ask",
+  "files",
+  "ai",
   "reviews",
+  "memory",
+  "guide",
   "project-settings",
 ];
 const SETTINGS_SECTIONS: SettingsSection[] = [
   "general",
   "ai",
   "retrieval",
+  "documents",
   "privacy",
   "backups",
   "advanced",
@@ -228,7 +231,7 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     const project = projectQuery.data;
     const scanSignature = project
-      ? `${project.settings.workspace_path ?? ""}|${String(project.settings.include_subfolders)}`
+      ? `${project.settings.workspace_path ?? ""}|${String(project.settings.include_subfolders)}|${project.settings.excluded_patterns.join("|")}`
       : "";
     if (
       project &&
@@ -249,6 +252,9 @@ export function App(): React.JSX.Element {
           await Promise.all([
             queryClient.invalidateQueries({
               queryKey: ["documents", project.id],
+            }),
+            queryClient.invalidateQueries({
+              queryKey: ["project-files", project.id],
             }),
             queryClient.invalidateQueries({
               queryKey: ["project-summary", project.id],
@@ -411,8 +417,16 @@ export function App(): React.JSX.Element {
 
   const settings = settingsQuery.data;
   const currentSection = activeRoute.projectSection ?? "overview";
+  const providerClassName = [
+    "root-provider",
+    `visual-${settings.visual_style}`,
+    `density-${settings.interface_density}`,
+    settings.reduce_motion ? "reduce-motion" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <FluentProvider theme={theme} className="root-provider">
+    <FluentProvider theme={theme} className={providerClassName}>
       <AppLocaleProvider locale={settings.locale}>
         <AppShell
           brandName={settings.brand_name}
@@ -475,6 +489,7 @@ export function App(): React.JSX.Element {
               }
               onEditProject={editProject}
               onOpenGlobalSettings={openAiSettings}
+              autoIncludeCoreMemory={settings.auto_include_core_memory}
             />
           )}
         </AppShell>

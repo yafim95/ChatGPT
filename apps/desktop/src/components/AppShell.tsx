@@ -1,20 +1,30 @@
 import { Button, Text, Tooltip } from "@fluentui/react-components";
 import {
+  BookOpen24Regular,
+  Bot24Regular,
   Briefcase24Regular,
-  Chat24Regular,
   ClipboardTask24Regular,
   Database24Regular,
-  Document24Regular,
+  FolderOpen24Regular,
   Home24Regular,
+  Navigation24Regular,
+  Search24Regular,
   Settings24Regular,
   ShieldCheckmark24Regular,
+  Sparkle24Regular,
 } from "@fluentui/react-icons";
 import type { HealthResponse, Project } from "../types/api";
 import { BackendStatus } from "./BackendStatus";
 
 export type PrimaryView = "home" | "projects" | "project" | "settings";
 export type ProjectSection =
-  "overview" | "documents" | "ask" | "reviews" | "project-settings";
+  | "overview"
+  | "files"
+  | "ai"
+  | "reviews"
+  | "memory"
+  | "guide"
+  | "project-settings";
 
 interface AppShellProps {
   brandName: string;
@@ -30,6 +40,7 @@ interface AppShellProps {
 
 interface NavItemProps {
   label: string;
+  description?: string;
   active: boolean;
   icon: React.ReactElement;
   compact: boolean;
@@ -38,6 +49,7 @@ interface NavItemProps {
 
 function NavItem({
   label,
+  description,
   active,
   icon,
   compact,
@@ -45,13 +57,18 @@ function NavItem({
 }: NavItemProps): React.JSX.Element {
   const button = (
     <Button
-      className={`nav-item${active ? " nav-item--active" : ""}`}
+      className={`nav-item nav-item-v3${active ? " nav-item--active" : ""}`}
       appearance="subtle"
       icon={icon}
       aria-label={label}
       onClick={onClick}
     >
-      {compact ? null : label}
+      {compact ? null : (
+        <span className="nav-item-v3__copy">
+          <span>{label}</span>
+          {description ? <small>{description}</small> : null}
+        </span>
+      )}
     </Button>
   );
   return compact ? (
@@ -62,6 +79,16 @@ function NavItem({
     button
   );
 }
+
+const sectionTitle: Record<ProjectSection, string> = {
+  overview: "Project command center",
+  files: "Project files",
+  ai: "AI workspace",
+  reviews: "Reviews & CRS",
+  memory: "Project memory",
+  guide: "Workflow guide",
+  "project-settings": "Project controls",
+};
 
 export function AppShell({
   brandName,
@@ -74,14 +101,25 @@ export function AppShell({
   onProjectSectionChange,
   children,
 }: AppShellProps): React.JSX.Element {
+  const currentTitle =
+    view === "home"
+      ? "Home"
+      : view === "projects"
+        ? "Projects"
+        : view === "settings"
+          ? "Application settings"
+          : sectionTitle[projectSection];
+
   return (
     <div
-      className={`app-frame${compact ? " app-frame--compact" : ""}`}
+      className={`app-frame app-frame-v3${compact ? " app-frame--compact" : ""}`}
       data-projectmind-surface
     >
-      <aside className="sidebar">
-        <div className="brand-block">
-          <div className="brand-mark" aria-hidden="true">
+      <div className="ambient-orb ambient-orb--one" aria-hidden="true" />
+      <div className="ambient-orb ambient-orb--two" aria-hidden="true" />
+      <aside className="sidebar sidebar-v3 glass-surface">
+        <div className="brand-block brand-block-v3">
+          <div className="brand-mark brand-mark-v3" aria-hidden="true">
             <ShieldCheckmark24Regular />
           </div>
           {compact ? null : (
@@ -89,7 +127,7 @@ export function AppShell({
               <Text weight="semibold" truncate title={brandName}>
                 {brandName}
               </Text>
-              <Text size={200}>Engineering intelligence</Text>
+              <Text size={100}>Engineering document intelligence</Text>
             </div>
           )}
         </div>
@@ -112,55 +150,76 @@ export function AppShell({
         </nav>
 
         {project && view === "project" ? (
-          <div className="project-navigation">
+          <div className="project-navigation project-navigation-v3">
             {compact ? (
               <div className="nav-divider" />
             ) : (
-              <Text className="nav-kicker">WORKSPACE</Text>
-            )}
-            {compact ? null : (
-              <div className="active-project-label" title={project.name}>
-                <span className="active-project-label__mark">
-                  {project.name.slice(0, 1).toUpperCase()}
-                </span>
-                <span>
-                  <Text weight="semibold" truncate>
-                    {project.name}
-                  </Text>
-                  <Text size={100}>{project.project_number}</Text>
-                </span>
-              </div>
+              <>
+                <Text className="nav-kicker">ACTIVE PROJECT</Text>
+                <div className="active-project-card" title={project.name}>
+                  <span className="active-project-card__mark">
+                    {project.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="active-project-card__copy">
+                    <Text weight="semibold" truncate>
+                      {project.name}
+                    </Text>
+                    <Text size={100}>{project.project_number}</Text>
+                  </span>
+                  <Navigation24Regular />
+                </div>
+              </>
             )}
             <NavItem
-              label="Overview"
+              label="Command center"
+              description="Project health and activity"
               active={projectSection === "overview"}
               icon={<Home24Regular />}
               compact={compact}
               onClick={() => onProjectSectionChange("overview")}
             />
             <NavItem
-              label="Documents"
-              active={projectSection === "documents"}
-              icon={<Document24Regular />}
+              label="Project files"
+              description="Browse, search, and classify"
+              active={projectSection === "files"}
+              icon={<FolderOpen24Regular />}
               compact={compact}
-              onClick={() => onProjectSectionChange("documents")}
+              onClick={() => onProjectSectionChange("files")}
             />
             <NavItem
-              label="Ask Project"
-              active={projectSection === "ask"}
-              icon={<Chat24Regular />}
+              label="AI workspace"
+              description="Chats with controlled context"
+              active={projectSection === "ai"}
+              icon={<Bot24Regular />}
               compact={compact}
-              onClick={() => onProjectSectionChange("ask")}
+              onClick={() => onProjectSectionChange("ai")}
             />
             <NavItem
-              label="Reviews"
+              label="Reviews & CRS"
+              description="Decisions and comment replies"
               active={projectSection === "reviews"}
               icon={<ClipboardTask24Regular />}
               compact={compact}
               onClick={() => onProjectSectionChange("reviews")}
             />
             <NavItem
-              label="Project settings"
+              label="Project memory"
+              description="Contracts and permanent context"
+              active={projectSection === "memory"}
+              icon={<Sparkle24Regular />}
+              compact={compact}
+              onClick={() => onProjectSectionChange("memory")}
+            />
+            <NavItem
+              label="How to use"
+              description="Recommended review workflow"
+              active={projectSection === "guide"}
+              icon={<BookOpen24Regular />}
+              compact={compact}
+              onClick={() => onProjectSectionChange("guide")}
+            />
+            <NavItem
+              label="Project controls"
               active={projectSection === "project-settings"}
               icon={<Settings24Regular />}
               compact={compact}
@@ -179,27 +238,56 @@ export function AppShell({
             onClick={() => onNavigate("settings")}
           />
         </nav>
-        <Tooltip
-          content="Documents and indexes stay on this Windows account."
-          relationship="description"
-        >
-          <div className="local-data-note" tabIndex={0}>
+        {compact ? null : (
+          <div className="local-data-note local-data-note-v3">
             <Database24Regular />
-            {compact ? null : (
-              <div>
-                <Text weight="semibold" size={200}>
-                  Local-first workspace
-                </Text>
-                <Text size={100}>External AI is opt-in</Text>
-              </div>
-            )}
+            <div>
+              <Text weight="semibold" size={200}>
+                Local workspace
+              </Text>
+              <Text size={100}>External AI remains opt-in</Text>
+            </div>
           </div>
-        </Tooltip>
+        )}
         <div className="sidebar-status">
           <BackendStatus connected version={health.version} />
         </div>
       </aside>
-      <main className="main-content">{children}</main>
+
+      <main className="main-content main-content-v3">
+        <header className="app-command-bar glass-surface">
+          <div className="app-command-bar__title">
+            <Text size={100} className="eyebrow">
+              {project ? project.project_number : "PROJECTMIND"}
+            </Text>
+            <Text weight="semibold">{currentTitle}</Text>
+          </div>
+          <div className="app-command-bar__actions">
+            {project ? (
+              <Button
+                appearance="subtle"
+                icon={<Search24Regular />}
+                onClick={() => onProjectSectionChange("files")}
+              >
+                Search project
+              </Button>
+            ) : null}
+            {project ? (
+              <Button
+                appearance="subtle"
+                icon={<BookOpen24Regular />}
+                onClick={() => onProjectSectionChange("guide")}
+              >
+                Workflow
+              </Button>
+            ) : null}
+            <span className="connection-chip">
+              <span /> Local service ready
+            </span>
+          </div>
+        </header>
+        <div className="main-scroll-region">{children}</div>
+      </main>
     </div>
   );
 }

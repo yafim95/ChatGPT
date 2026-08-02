@@ -737,7 +737,7 @@ pub fn run() {
                 &log_path,
                 &format!(
                     "desktop launch [version={} launch={renderer_launch_id}] \
-                     frontend=self-contained renderer_profile=webview-v0.2.0",
+                     frontend=self-contained renderer_profile=webview-v0.3.0",
                     env!("CARGO_PKG_VERSION")
                 ),
             );

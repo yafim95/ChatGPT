@@ -2,23 +2,25 @@
 
 ProjectMind is a Windows-first engineering knowledge and document-intelligence application. It is designed to become a traceable, revision-aware project memory for construction teams rather than a general chatbot.
 
-Version 0.2.0 contains a usable local-first product workspace:
+Version 0.3.0 turns that foundation into a connected local-first engineering document-control workspace:
 
-- Persistent Tauri 2/React 19/Fluent UI navigation with Home, Projects, Settings, and project workspaces.
+- A new Claymorphism/Glassmorphism application shell with a project command center, persistent navigation, responsive work surfaces, and comfortable/compact density controls.
 - Bundled FastAPI sidecar architecture; end users will not need Python.
 - Authenticated localhost communication with a random per-launch session token.
-- Project creation, editing, archiving, local folder selection, and per-project scan controls.
+- Project creation, editing, archiving, native local-folder selection, and an in-app browser for the real project directory without moving source files.
 - Local PDF, DOCX, XLSX/XLSM, CSV, Markdown, and text extraction with SHA-256 duplicate and revision tracking.
-- SQLite FTS5 search, document preview, missing-file detection, and current/superseded controls.
-- Evidence-only, project, and general chat modes through Kimi or a configurable OpenAI-compatible provider.
-- Source-linked draft engineering reviews for submittals, MSRAs, ITPs, shop drawings, and reports.
-- Modular controls for appearance, retrieval, privacy, protected provider credentials, backups, diagnostics, and interface recovery.
+- A document register with open/closed review state, configurable decision codes, permanent-memory classification, indexed preview, and direct links to related chats, reviews, and Comment Reply Sheets.
+- ChatGPT Work-style project conversations with explicit file selection, reusable chats, evidence citations, and a visible controlled-context rail.
+- Three-tier RAG: selected review files first, relevant permanent project-memory passages second, and project-wide FTS5 passage retrieval third.
+- Formal document reviews for submittals, MSRAs, ITPs, shop drawings, and reports, including due dates, discipline/reference fields, decision codes, revision reopening, and linked AI drafts.
+- Attached Comment Reply Sheets (CRS) with consultant comments, contractor replies, consultant responses, row closure, review relationships, and CSV export.
+- A dedicated Project memory manager, an in-app six-step workflow guide, and modular project/application controls for appearance, retrieval, documents, privacy, provider credentials, backups, diagnostics, and interface recovery.
 - SQLite with WAL, foreign keys, Alembic migrations, soft-deletion, audit events, and automatic/manual backups.
 - Automated backend/frontend checks and a Windows NSIS installer workflow.
 
 Source documents stay in their selected folders. Extracted text, search indexes, project records, conversations, and reviews are stored locally. External AI is disabled by default; when enabled, ProjectMind sends the prompt and selected retrieved excerpts rather than uploading the document library.
 
-OCR, semantic/vector retrieval, structured requirement memory, export templates, signed release distribution, and enterprise encryption remain roadmap work. Image-only PDFs are reported as needing OCR instead of being presented as successfully searchable.
+OCR, vector/embedding reranking, structured requirement registers, formatted DOCX/XLSX review exports, signed release distribution, and enterprise encryption remain roadmap work. Image-only PDFs are reported as needing OCR instead of being presented as successfully searchable.
 
 ## Architecture at a glance
 
@@ -31,7 +33,7 @@ flowchart LR
     API -. "opt-in selected evidence" .-> KIMI["Kimi / compatible provider"]
 ```
 
-See [Architecture](docs/ARCHITECTURE.md), [Implementation plan](docs/IMPLEMENTATION_PLAN.md), and the historical [Phase 1 verification](docs/PHASE_1.md) for decisions, current limits, and roadmap.
+See the [User workflow](docs/WORKFLOW.md), [Architecture](docs/ARCHITECTURE.md), [Implementation plan](docs/IMPLEMENTATION_PLAN.md), and historical [Phase 1 verification](docs/PHASE_1.md) for operation, decisions, current limits, and roadmap.
 
 ## Developer quick start on Windows
 
@@ -108,4 +110,4 @@ ProjectMind assists qualified professionals; it does not replace engineering jud
 
 ## Status
 
-Version `0.2.0` — functional project workspace, local document intelligence, controlled AI, engineering reviews, and modular application settings. See [CHANGELOG.md](CHANGELOG.md).
+Version `0.3.0` — connected EDMS-style project workspace, persistent project memory, controlled RAG, document review register, and Comment Reply Sheets. See [CHANGELOG.md](CHANGELOG.md).

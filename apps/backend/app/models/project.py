@@ -6,13 +6,13 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.knowledge import Conversation, Document, ReviewRecord
+    from app.models.knowledge import CommentReplySheet, Conversation, Document, ReviewRecord
 
 
 class Project(TimestampMixin, Base):
@@ -53,6 +53,11 @@ class Project(TimestampMixin, Base):
         cascade="all, delete-orphan",
         lazy="raise",
     )
+    crs_sheets: Mapped[list[CommentReplySheet]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
 
 
 class ProjectSettings(Base):
@@ -71,5 +76,9 @@ class ProjectSettings(Base):
     workspace_path: Mapped[str | None] = mapped_column(Text)
     include_subfolders: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     auto_scan_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    excluded_patterns: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    ai_project_instructions: Mapped[str | None] = mapped_column(Text)
+    auto_create_crs: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    default_review_due_days: Mapped[int] = mapped_column(Integer, nullable=False, default=14)
 
     project: Mapped[Project] = relationship(back_populates="settings")

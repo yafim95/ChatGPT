@@ -2,6 +2,35 @@
 
 All notable changes are documented here. The project follows semantic versioning once the first stable release is published.
 
+## 0.3.0 — 2026-08-01
+
+### Added
+
+- Replace the project workspace with a connected EDMS/project-management interface using a restrained Claymorphism and Glassmorphism visual system, a project command center, persistent project navigation, responsive layouts, and configurable density/motion.
+- Add a real project-directory browser with folders, recursive name/path search, native Explorer access, supported-format visibility, safe folder-boundary enforcement, configurable exclusions, and indexed-state indicators.
+- Add a document workflow inspector for permanent project memory, memory category, open/closed review state, Code 1/2/3 decisions, indexed preview, and related chats/reviews/CRS records.
+- Add a ChatGPT Work-style AI workspace with saved project chats, explicit review-file selection, a controlled-context rail, project memory controls, prompt shortcuts, and source-tier citations.
+- Add chunked local FTS5 retrieval and a three-tier RAG pipeline: selected documents, permanent project memory, then project-wide evidence, with de-duplication and a configurable context budget.
+- Persist conversation-to-document relationships so every indexed file can show the chats that used it as selected context, memory, or retrieved evidence.
+- Add a formal review register with file attachment, review type, discipline, reference, due date, manual/AI drafting, configurable decision codes, open/closed state, and automatic reopening when a new document revision is indexed.
+- Add Comment Reply Sheets linked to documents and reviews, including consultant comments, contractor replies, consultant responses, row status, automatic sheet status, CSV export, and duplicate/mismatched-link safeguards.
+- Add a dedicated Project memory page for contracts, Employer Requirements, specifications, IFC drawings, authority requirements, and durable project-specific AI rules.
+- Add an in-app six-step usage guide and expanded application/project controls for appearance, document handling, RAG passage sizing, retrieval budgets, history, default folders, automatic memory, CRS defaults, review due dates, and exclusions.
+- Add the `20260801_0003` data migration with v0.2 document-chunk backfill and upgrade coverage that preserves existing projects, documents, and configured review codes.
+
+### Changed
+
+- Default review codes now match the requested consultant workflow: Code 1 Approved; Code 2 Revise and resubmit—work may proceed; Code 3 Revise and resubmit—work may not proceed. Existing customized code sets are preserved.
+- Document scanning now respects per-project exclusion patterns and carries permanent-memory classification into new revisions while reopening previously closed documents for reassessment.
+- External AI receives bounded, relevant extracted passages instead of the full library; selected review files always receive retrieval priority.
+- Use a fresh `webview-v0.3.0` renderer profile while preserving the application database, projects, source-folder links, indexed records, chats, reviews, and CRS data.
+
+### Safety and limits
+
+- Project files, extracted text, chunks, relationships, reviews, and CRS records remain local. External AI is opt-in and receives retrieved passages only when the user initiates a chat or AI review.
+- Retrieval is deterministic chunked FTS5 rather than embeddings in this release. This keeps the package local and lightweight; vector reranking remains a measured future enhancement rather than an unverified dependency.
+- AI output remains evidence-linked assistance and requires qualified engineering, contractual, and authority review.
+
 ## 0.2.0 — 2026-08-01
 
 ### Added

@@ -13,6 +13,8 @@ import {
   Title3,
 } from "@fluentui/react-components";
 import {
+  Bot24Regular,
+  ClipboardTask24Regular,
   Edit20Regular,
   FolderOpen20Regular,
   Open20Regular,
@@ -36,12 +38,16 @@ interface FormState {
   workspacePath: string;
   includeSubfolders: boolean;
   autoScan: boolean;
+  excludedPatterns: string;
   timezone: string;
   locale: string;
   disciplines: string;
   reviewCodes: string;
   documentHierarchy: string;
   documentPrecedence: string;
+  aiInstructions: string;
+  autoCreateCrs: boolean;
+  defaultReviewDueDays: string;
 }
 
 function projectForm(project: Project): FormState {
@@ -49,6 +55,7 @@ function projectForm(project: Project): FormState {
     workspacePath: project.settings.workspace_path ?? "",
     includeSubfolders: project.settings.include_subfolders,
     autoScan: project.settings.auto_scan_enabled,
+    excludedPatterns: project.settings.excluded_patterns.join("\n"),
     timezone: project.settings.timezone,
     locale: project.settings.locale,
     disciplines: project.settings.disciplines.join("\n"),
@@ -57,6 +64,9 @@ function projectForm(project: Project): FormState {
       .join("\n"),
     documentHierarchy: project.settings.document_hierarchy.join("\n"),
     documentPrecedence: project.settings.document_precedence.join("\n"),
+    aiInstructions: project.settings.ai_project_instructions ?? "",
+    autoCreateCrs: project.settings.auto_create_crs,
+    defaultReviewDueDays: String(project.settings.default_review_due_days),
   };
 }
 
@@ -103,12 +113,16 @@ export function ProjectSettingsSection({
         workspace_path: form.workspacePath.trim() || null,
         include_subfolders: form.includeSubfolders,
         auto_scan_enabled: form.autoScan,
+        excluded_patterns: lines(form.excludedPatterns),
         timezone: form.timezone,
         locale: form.locale,
         disciplines: lines(form.disciplines),
         review_codes: parsedReviewCodes(form.reviewCodes),
         document_hierarchy: lines(form.documentHierarchy),
         document_precedence: lines(form.documentPrecedence),
+        ai_project_instructions: form.aiInstructions.trim() || null,
+        auto_create_crs: form.autoCreateCrs,
+        default_review_due_days: Number(form.defaultReviewDueDays),
       }),
     onSuccess: async () => {
       await Promise.all([
@@ -239,6 +253,17 @@ export function ProjectSettingsSection({
             onChange={(_, data) => set("autoScan", data.checked)}
           />
         </div>
+        <Field
+          label="Excluded names and patterns"
+          hint="One folder name or wildcard per line. These paths remain visible only when not excluded."
+        >
+          <Textarea
+            value={form.excludedPatterns}
+            resize="vertical"
+            placeholder={".git\nnode_modules\n~$*"}
+            onChange={(_, data) => set("excludedPatterns", data.value)}
+          />
+        </Field>
       </Card>
 
       <Card className="settings-module" appearance="outline">
@@ -328,6 +353,76 @@ export function ProjectSettingsSection({
         </div>
       </Card>
 
+      <Card className="settings-module" appearance="outline">
+        <div className="settings-module__heading">
+          <div className="settings-module__icon">
+            <ClipboardTask24Regular />
+          </div>
+          <div>
+            <Text weight="semibold" size={400}>
+              Review workflow & CRS
+            </Text>
+            <Text className="muted-text">
+              Set review-register defaults without removing per-review control.
+            </Text>
+          </div>
+        </div>
+        <div className="two-column-fields">
+          <Field
+            label="Default review period (days)"
+            hint="Used to calculate the initial target date for new reviews."
+          >
+            <Input
+              type="number"
+              min={1}
+              max={365}
+              value={form.defaultReviewDueDays}
+              onChange={(_, data) => set("defaultReviewDueDays", data.value)}
+            />
+          </Field>
+          <div className="setting-switch-row setting-switch-row--embedded">
+            <div>
+              <Text weight="semibold">Create CRS with each review</Text>
+              <Text size={200}>
+                Attach an empty Comment Reply Sheet automatically.
+              </Text>
+            </div>
+            <Switch
+              checked={form.autoCreateCrs}
+              onChange={(_, data) => set("autoCreateCrs", data.checked)}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card className="settings-module" appearance="outline">
+        <div className="settings-module__heading">
+          <div className="settings-module__icon">
+            <Bot24Regular />
+          </div>
+          <div>
+            <Text weight="semibold" size={400}>
+              Project-specific AI rules
+            </Text>
+            <Text className="muted-text">
+              Durable instructions included with this project’s chats and
+              reviews.
+            </Text>
+          </div>
+        </div>
+        <Field
+          label="Controlled instructions"
+          hint="Define terminology, precedence, authority constraints, and required response conventions."
+        >
+          <Textarea
+            value={form.aiInstructions}
+            resize="vertical"
+            placeholder="Example: Never infer approval. Treat the Contract and Employer’s Requirements as higher precedence than submittals."
+            onChange={(_, data) => set("aiInstructions", data.value)}
+          />
+        </Field>
+      </Card>
+
       {save.isError ? (
         <MessageBar intent="error">
           <MessageBarBody>
@@ -355,6 +450,8 @@ export function ProjectSettingsSection({
             form.disciplines.trim().length === 0 ||
             form.timezone.trim().length === 0 ||
             form.locale.trim().length < 2 ||
+            Number(form.defaultReviewDueDays) < 1 ||
+            Number(form.defaultReviewDueDays) > 365 ||
             !reviewCodesAreValid(form.reviewCodes)
           }
           onClick={() => save.mutate()}
