@@ -221,7 +221,7 @@ project = connection.execute(
     "SELECT name FROM projects WHERE project_number = 'SYNTHETIC-001'"
 ).fetchone()
 connection.close()
-assert revision == ("20260801_0002",), revision
+assert revision == ("20260801_0003",), revision
 assert project == ("Interrupted migration project",), project
 '@
     & $pythonPath -c $verificationCode $databasePath
